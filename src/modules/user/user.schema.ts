@@ -1,5 +1,6 @@
 import { PERMISSIONS } from "@/permissions";
 import { errorResponseSchema, responseSchema } from "@/utils";
+import type { RouteAuthConfig } from "@/types/auth";
 import { z } from "zod/v4";
 
 const userStatus = z.enum(["normal", "disabled", "deleted"]);
@@ -88,7 +89,7 @@ export const userAddRouteOptions = {
       ...commonErrorResponses,
     },
   },
-  config: { permission: PERMISSIONS.SYSTEM_USER_ADD },
+  config: { auth: "admin", permission: PERMISSIONS.SYSTEM_USER_ADD } satisfies RouteAuthConfig,
 };
 
 export const userUpdateRouteOptions = {
@@ -98,7 +99,7 @@ export const userUpdateRouteOptions = {
     body: userUpdateBodySchema,
     response: { 200: responseSchema(z.object({})), ...commonErrorResponses },
   },
-  config: { permission: PERMISSIONS.SYSTEM_USER_PUT },
+  config: { auth: "admin", permission: PERMISSIONS.SYSTEM_USER_PUT } satisfies RouteAuthConfig,
 };
 
 export const userListRouteOptions = {
@@ -118,7 +119,7 @@ export const userListRouteOptions = {
       ...commonErrorResponses,
     },
   },
-  config: { permission: PERMISSIONS.SYSTEM_USER_GET },
+  config: { auth: "admin", permission: PERMISSIONS.SYSTEM_USER_GET } satisfies RouteAuthConfig,
 };
 
 export const userDeleteRouteOptions = {
@@ -129,7 +130,7 @@ export const userDeleteRouteOptions = {
     params: z.object({ user_id: z.coerce.number().int().min(1).describe("用户 ID") }),
     response: { 200: responseSchema(z.object({})), ...commonErrorResponses },
   },
-  config: { permission: PERMISSIONS.SYSTEM_USER_DELETE },
+  config: { auth: "admin", permission: PERMISSIONS.SYSTEM_USER_DELETE } satisfies RouteAuthConfig,
 };
 
 export const userPermissionGetRouteOptions = {
@@ -142,7 +143,7 @@ export const userPermissionGetRouteOptions = {
       ...commonErrorResponses,
     },
   },
-  config: { permission: PERMISSIONS.SYSTEM_USER_PERMISSION_GET },
+  config: { auth: "admin", permission: PERMISSIONS.SYSTEM_USER_PERMISSION_GET } satisfies RouteAuthConfig,
 };
 
 export const userPermissionPutRouteOptions = {
@@ -152,7 +153,7 @@ export const userPermissionPutRouteOptions = {
     body: userPermissionBodySchema,
     response: { 200: responseSchema(z.object({})), ...commonErrorResponses },
   },
-  config: { permission: PERMISSIONS.SYSTEM_USER_PERMISSION_PUT },
+  config: { auth: "admin", permission: PERMISSIONS.SYSTEM_USER_PERMISSION_PUT } satisfies RouteAuthConfig,
 };
 
 export const userInfoRouteOptions = {
@@ -161,6 +162,7 @@ export const userInfoRouteOptions = {
     summary: "获取当前管理员详情",
     response: { 200: responseSchema(userResponseSchema), ...commonErrorResponses },
   },
+  config: { auth: "admin" } satisfies RouteAuthConfig,
 };
 
 export const userLogoutRouteOptions = {
@@ -169,6 +171,7 @@ export const userLogoutRouteOptions = {
     summary: "管理员退出登录",
     response: { 200: responseSchema(z.object({})), ...commonErrorResponses },
   },
+  config: { auth: "admin" } satisfies RouteAuthConfig,
 };
 
 export const userLoginRouteOptions = {
@@ -189,5 +192,5 @@ export const userLoginRouteOptions = {
       500: errorResponseSchema,
     },
   },
-  config: { isAuth: false },
+  config: { auth: "public" } satisfies RouteAuthConfig,
 };

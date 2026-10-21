@@ -1,4 +1,5 @@
 import { errorResponseSchema, responseSchema } from "@/utils";
+import type { RouteAuthConfig } from "@/types/auth";
 import { z } from "zod/v4";
 
 export const exampleLoginRouteOptions = {
@@ -22,8 +23,8 @@ export const exampleLoginRouteOptions = {
     },
   },
   config: {
-    isAuth: false, // 禁用全局的认证 验证token
-  },
+    auth: "public", // 禁用全局的认证 验证token
+  } satisfies RouteAuthConfig,
 };
 
 export const exampleChatRouteOptions = {
@@ -36,8 +37,8 @@ export const exampleChatRouteOptions = {
     }),
   },
   config: {
-    isAuth: false, // 禁用全局的认证 验证token
-  },
+    auth: "public", // 禁用全局的认证 验证token
+  } satisfies RouteAuthConfig,
 };
 
 export const exampleWsRouteOptions = {
@@ -55,8 +56,8 @@ export const exampleWsRouteOptions = {
     },
   },
   config: {
-    isAuth: false, // 禁用全局的认证 验证token
-  },
+    auth: "public", // 禁用全局的认证 验证token
+  } satisfies RouteAuthConfig,
 };
 
 export interface ChatData {

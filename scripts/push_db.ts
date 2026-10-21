@@ -11,9 +11,9 @@ const rootDir = path.resolve(path.dirname(currentFilePath), "..");
 export default defineConfig({
   schema: "src/db/*.ts",
   out: "./drizzle",
-  dialect: "mysql",
+  dialect: "postgresql",
   dbCredentials: {
-    url: process.env.MYSQL_URL ?? "",
+    url: process.env.APP_DATABASE_URL ?? "",
   },
 });
 

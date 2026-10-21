@@ -1,5 +1,6 @@
 import { PERMISSIONS } from "@/permissions";
 import { responseSchema, errorResponseSchema } from "@/utils";
+import type { RouteAuthConfig } from "@/types/auth";
 import { z } from "zod/v4";
 
 const codeValueSchema = z.string().trim().min(1).max(120).describe("权限编码");
@@ -60,8 +61,9 @@ export const codeUpdateRouteOptions = {
     response: { 200: emptyResponseSchema, ...commonErrorResponses },
   },
   config: {
+    auth: "admin",
     permission: PERMISSIONS.SYSTEM_CODE_PUT,
-  },
+  } satisfies RouteAuthConfig,
 };
 
 const codeListQuerySchema = z.object({
@@ -89,8 +91,9 @@ export const codeListRouteOptions = {
     },
   },
   config: {
+    auth: "admin",
     permission: PERMISSIONS.SYSTEM_CODE_GET,
-  },
+  } satisfies RouteAuthConfig,
 };
 
 const codeFilterQuerySchema = z.object({
@@ -115,6 +118,7 @@ export const codeFilterRouteOptions = {
     },
   },
   config: {
+    auth: "admin",
     permission: PERMISSIONS.SYSTEM_CODE_GET,
-  },
+  } satisfies RouteAuthConfig,
 };

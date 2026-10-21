@@ -39,11 +39,28 @@ export default async function transport(options = {}) {
     return nextStream;
   }
 
-  return build(async function (source) {
+  const transportStream = build(async function (source) {
     for await (const obj of source) {
       const time = obj.time ? new Date(obj.time) : new Date();
       const stream = getStream(obj.logType, formatLogDate(time));
       stream.write(`${JSON.stringify(obj)}\n`);
     }
   });
+
+  // pino 退出前会 flush：等文件流的缓冲区写完，避免丢掉最后几条日志
+  transportStream.flush = function flush(callback) {
+    const pending = [...streams.values()].map(
+      ({ stream }) =>
+        new Promise((resolve) => {
+          stream.write("", () => resolve());
+        }),
+    );
+
+    Promise.all(pending).then(
+      () => callback?.(),
+      () => callback?.(),
+    );
+  };
+
+  return transportStream;
 }

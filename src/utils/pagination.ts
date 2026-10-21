@@ -24,7 +24,7 @@ export async function paginate<T>(
   query: PageQuery,
   handlers: {
     list: (args: { limit: number; offset: number }) => Promise<T[]>;
-    total: () => Promise<Array<{ total: number }>>;
+    total: () => Promise<Array<{ total: number | string }>>;
   },
 ): Promise<PageResult<T>> {
   const page = Math.max(Math.floor(Number(query.page ?? 1)), 1);
@@ -33,7 +33,7 @@ export async function paginate<T>(
   const [list, totalRows] = await Promise.all([handlers.list({ limit, offset }), handlers.total()]);
   return {
     list,
-    total: totalRows[0]?.total ?? 0,
+    total: Number(totalRows[0]?.total ?? 0),
     page,
     limit,
   };

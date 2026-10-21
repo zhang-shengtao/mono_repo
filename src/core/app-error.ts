@@ -18,6 +18,8 @@ export const BusinessCode = {
   PAYLOAD_TOO_LARGE: 413,
   /** 通用错误：请求内容类型不支持 */
   UNSUPPORTED_MEDIA_TYPE: 415,
+  /** 通用错误：请求过于频繁，已触发限流 */
+  TOO_MANY_REQUESTS: 429,
   /** 通用错误：服务器内部异常 */
   INTERNAL_ERROR: 500,
   /** 通用错误：响应数据不符合接口文档定义 */
@@ -63,4 +65,11 @@ export class AppError extends Error {
     super(message);
     this.name = "AppError";
   }
+}
+
+/** 把 unknown 异常整理成一行可读文本，用于启动阶段的兜底输出 */
+export function describeError(error: unknown) {
+  if (!(error instanceof Error)) return String(error);
+  const cause = error.cause instanceof Error ? `（上游原因：${error.cause.message}）` : "";
+  return `${error.message}${cause}`;
 }

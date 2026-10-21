@@ -3,9 +3,9 @@ import websocket from "@fastify/websocket";
 
 async function websocketPlugin(fastify: FastifyInstance) {
   await fastify.register(websocket, {
-    errorHandler(error, socket, req, reply) {
+    errorHandler(error, socket, _req, _reply) {
       //WebSocket 连接建立之后，如果你的 WebSocket route handler 里抛错，会进入这个 errorHandler
-      fastify.log.error({ tip: "websocket报错", error });
+      fastify.log.error({ err: error, tip: "websocket报错" }, "websocket 连接异常");
       socket.terminate();
     },
     options: {

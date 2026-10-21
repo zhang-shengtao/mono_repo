@@ -18,13 +18,13 @@ export default async function exampleRoutes(fastify: FastifyInstance) {
       "X-Accel-Buffering": "no",
       "request-id": request.id,
     });
-    exampleService.chat(request.body.name, reply);
+    void exampleService.chat(request.body.name, reply);
   });
 
   fastify.get("/api/example/ws", { websocket: true, ...exampleWsRouteOptions }, function (socket, req) {
     socket.send(JSON.stringify({ type: "open", id: req.id }));
-    socket.on("message", async (message: Buffer) => {
-      const msg: ChatData = JSON.parse(message.toString());
+    socket.on("message", (message: Buffer) => {
+      const msg = JSON.parse(message.toString()) as ChatData;
       socket.send(JSON.stringify({ ...msg, id: req.id }));
       if (msg.type === "chat") {
         socket.close();

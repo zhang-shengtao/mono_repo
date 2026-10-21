@@ -7,7 +7,7 @@ export default class GlobalService {
     await this.fastify.db.execute(sql`SELECT 1`);
     return {
       redis: redisStatus,
-      mysql: "ok",
+      database: "ok",
       uptime: Date.now(),
     };
   }

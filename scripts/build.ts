@@ -96,18 +96,10 @@ async function copyRuntimeFiles() {
     path.join("src", "core", "access-log-transport.mjs"),
     path.join("core", "access-log-transport.mjs"),
   );
-  await copyEnvFiles();
 }
 
 async function copyRequiredFile(sourcePath: string, targetPath = sourcePath) {
   const targetFilePath = path.join(distDir, targetPath);
   await mkdir(path.dirname(targetFilePath), { recursive: true });
   await copyFile(path.join(rootDir, sourcePath), targetFilePath);
-}
-
-async function copyEnvFiles() {
-  const entries = await readdir(rootDir, { withFileTypes: true });
-  const envFiles = entries.filter((entry) => entry.isFile() && entry.name.startsWith(".env"));
-
-  await Promise.all(envFiles.map((entry) => copyFile(path.join(rootDir, entry.name), path.join(distDir, entry.name))));
 }

@@ -1,11 +1,12 @@
 import fp from "fastify-plugin";
 import swagger from "@fastify/swagger";
 import apiReference from "@scalar/fastify-api-reference";
-import { jsonSchemaTransform, serializerCompiler, validatorCompiler } from "fastify-type-provider-zod";
+import { jsonSchemaTransform } from "fastify-type-provider-zod";
+import { env } from "@/core/env";
 
 async function swaggerPlugin(fastify: FastifyInstance) {
-  fastify.setValidatorCompiler(validatorCompiler);
-  fastify.setSerializerCompiler(serializerCompiler);
+  // 接口文档按环境开关，生产默认不暴露
+  if (!env.API_DOCS_ENABLED) return;
 
   await fastify.register(swagger, {
     openapi: {

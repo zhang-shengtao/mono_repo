@@ -9,10 +9,10 @@ import type {
 } from "fastify";
 import type { JWT } from "@fastify/jwt";
 import type { FastifyRedis } from "@fastify/redis";
-import type { MySql2Database } from "drizzle-orm/mysql2";
+import type { NodePgDatabase } from "drizzle-orm/node-postgres";
 import type { ZodTypeProvider } from "fastify-type-provider-zod";
 import type { BusinessCode } from "@/core/app-error";
-import type { JwtPayload } from "./auth";
+import type { JwtPayload, RouteAuthConfig } from "./auth";
 import type { PermissionCode } from "@/permissions";
 
 type JwtNamespace = Omit<JWT, "admin" | "user">;
@@ -27,14 +27,29 @@ declare module "@fastify/jwt" {
 }
 
 declare module "fastify" {
+  /**
+   * 路由鉴权配置。
+   *
+   * 这里只放宽地声明字段，真正的形状约束由 `satisfies RouteAuthConfig`（`src/types/auth.ts`）在每个路由声明处把关：
+   * 接口无法声明成联合类型，所以「user 路由不能带 permission」这类规则要靠 satisfies 检查。
+   */
   interface FastifyContextConfig {
-    isAuth?: boolean;
+    /**
+     * 该路由使用哪套 token 校验：
+     * - "admin"：管理端密钥（会额外校验管理员状态与 permission）
+     * - "user"：用户端密钥
+     * - "public"：公开接口，两套校验器都跳过
+     *
+     * 未声明时等同于公开（两套校验器都跳过），需要鉴权的路由请显式声明。
+     */
+    auth?: RouteAuthConfig["auth"];
+    /** 需要的权限码，仅 auth: "admin" 时生效 */
     permission?: PermissionCode;
   }
 
   interface FastifyInstance {
     redis: FastifyRedis;
-    db: MySql2Database;
+    db: NodePgDatabase;
   }
 
   interface FastifyReply {

@@ -1,16 +1,17 @@
 import { responseSchema, errorResponseSchema } from "@/utils";
+import type { RouteAuthConfig } from "@/types/auth";
 import { z } from "zod/v4";
 
 export const healthRouteOptions = {
   schema: {
     tags: ["健康检查"],
     summary: "服务就绪检查",
-    description: "检查服务进程、Redis 和 MySQL 是否可用",
+    description: "检查服务进程、Redis 和 PostgreSQL 是否可用",
     response: {
       200: responseSchema(
         z.object({
           redis: z.string().describe("Redis PING 返回值"),
-          mysql: z.string().describe("MySQL 状态"),
+          database: z.string().describe("数据库状态"),
           uptime: z.number().describe("当前时间戳"),
         }),
       ),
@@ -18,8 +19,8 @@ export const healthRouteOptions = {
     },
   },
   config: {
-    isAuth: false, // 禁用全量的认证 验证token
-  },
+    auth: "public", // 禁用全量的认证 验证token
+  } satisfies RouteAuthConfig,
 };
 
 export const captchaRouteOptions = {
@@ -38,6 +39,6 @@ export const captchaRouteOptions = {
     },
   },
   config: {
-    isAuth: false, // 禁用全局的认证 验证token
-  },
+    auth: "public", // 禁用全局的认证 验证token
+  } satisfies RouteAuthConfig,
 };

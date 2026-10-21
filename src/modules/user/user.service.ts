@@ -7,7 +7,7 @@ import type { CachedAuthUser, DecodedJwtPayload } from "@/types/auth";
 import { formatLogTime } from "@/utils";
 import { paginate } from "@/utils/pagination";
 import { hashPassword, verifyPassword } from "@/utils/password";
-import { and, asc, count, eq, inArray, like, ne, or } from "drizzle-orm";
+import { and, asc, count, eq, inArray, ilike, ne, or } from "drizzle-orm";
 import type { UserAddBody, UserListQuery, UserPermissionBody, UserUpdateBody } from "./user.schema";
 
 const SESSION_SET_PREFIX = "admin:user:sessions:";
@@ -22,7 +22,7 @@ export default class UserService {
     if (query.search) {
       const keyword = `%${query.search}%`;
       conditions.push(
-        or(like(adminUser.account, keyword), like(adminUser.nickname, keyword), like(adminUser.remark, keyword))!,
+        or(ilike(adminUser.account, keyword), ilike(adminUser.nickname, keyword), ilike(adminUser.remark, keyword))!,
       );
     }
     const where = and(...conditions);
@@ -71,7 +71,7 @@ export default class UserService {
         created_by: manager.user_id,
         remark: data.remark,
       })
-      .$returningId();
+      .returning({ user_id: adminUser.user_id });
     return { user_id };
   }
 
@@ -225,7 +225,7 @@ export default class UserService {
 
     const { password: _password, ...userInfo } = currentUser;
     const uid = randomUUID();
-    const token = await this.fastify.jwt.admin.sign({ uid });
+    const token = this.fastify.jwt.admin.sign({ uid });
     const decode = this.fastify.jwt.admin.decode<DecodedJwtPayload>(token);
     if (!decode?.exp) throw new AppError(BusinessCode.INTERNAL_ERROR, "服务器错误");
     const ttl = Math.max(decode.exp - Math.floor(Date.now() / 1000), 1);

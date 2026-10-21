@@ -1,4 +1,5 @@
 import { responseSchema, errorResponseSchema } from "@/utils";
+import type { RouteAuthConfig } from "@/types/auth";
 import { z } from "zod/v4";
 
 export const aiDetailRouteOptions = {
@@ -17,6 +18,6 @@ export const aiDetailRouteOptions = {
     },
   },
   config: {
-    isAuth: false,
-  },
+    auth: "public",
+  } satisfies RouteAuthConfig,
 };

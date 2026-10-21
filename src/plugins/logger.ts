@@ -1,120 +1,64 @@
 import fp from "fastify-plugin";
-import { env } from "@/core/env";
 
 const ROUTER_LOG_TYPE = "router";
-const MAX_INLINE_PAYLOAD_LENGTH = 10 * 1024;
-const OMITTED_FILE_VALUE = "[file omitted]";
-const OMITTED_BINARY_VALUE = "[binary omitted]";
-const OMITTED_STREAM_VALUE = "[stream omitted]";
-const OMITTED_LARGE_VALUE = "[large payload omitted]";
-
-type SanitizedLogValue = unknown;
+const SKIP_URL_PREFIXES = ["/docs", "/api/health"];
 
 // 请求响应日志记录器
 async function loggerPlugin(fastify: FastifyInstance) {
-  fastify.addHook("preHandler", (req, reply, done) => {
-    if (req.url.startsWith("/docs")) return done();
+  // 用 preValidation 而不是 preHandler：
+  // 生命周期是 onRequest → preValidation → 参数校验 → preHandler → handler，
+  // 挂在 preHandler 会让「参数校验失败(400)」和「鉴权失败(401/403)」的请求完全不落日志。
+  fastify.addHook("preValidation", (req, reply, done) => {
+    if (shouldSkipUrl(req.url)) return done();
     fastify.log.info({
       logType: ROUTER_LOG_TYPE,
       stage: "request",
       method: req.method,
       url: req.url,
-      uid: req.id,
-      body: sanitizeLogValue(req.body, env.LOG_LARGE_REQUEST_PAYLOAD),
-      query: sanitizeLogValue(req.query, true),
-      params: sanitizeLogValue(req.params, true),
+      requestId: req.id,
+      ip: req.ip,
+      body: req.body,
+      query: req.query,
+      params: req.params,
       headers: req.headers,
     });
     done();
   });
+
+  // 成功响应：带 payload
   fastify.addHook("onSend", (req, reply, payload, done) => {
-    if (req.url.startsWith("/docs")) return done();
+    if (shouldSkipUrl(req.url) || reply.statusCode >= 400) return done();
     fastify.log.info({
       logType: ROUTER_LOG_TYPE,
       stage: "response",
       method: req.method,
       url: req.url,
-      uid: req.id,
+      requestId: req.id,
       statusCode: reply.statusCode,
       headers: reply.getHeaders(),
-      payload: shouldOmitResponsePayload(reply.getHeaders())
-        ? OMITTED_FILE_VALUE
-        : sanitizeLogValue(payload, env.LOG_LARGE_RESPONSE_PAYLOAD),
+      payload,
+    });
+    done();
+  });
+
+  // 失败响应：onSend 不保证对所有错误路径都执行，用 onResponse 兜住 4xx/5xx
+  fastify.addHook("onResponse", (req, reply, done) => {
+    if (shouldSkipUrl(req.url) || reply.statusCode < 400) return done();
+    fastify.log.warn({
+      logType: ROUTER_LOG_TYPE,
+      stage: "response",
+      method: req.method,
+      url: req.url,
+      requestId: req.id,
+      statusCode: reply.statusCode,
+      elapsedMs: reply.elapsedTime,
     });
     done();
   });
 }
 
-function sanitizeLogValue(value: unknown, allowLargePayload: boolean, seen = new WeakSet<object>()): SanitizedLogValue {
-  if (value == null) return value;
-
-  if (typeof value === "string") {
-    return allowLargePayload || value.length <= MAX_INLINE_PAYLOAD_LENGTH ? value : OMITTED_LARGE_VALUE;
-  }
-
-  if (typeof value !== "object") return value;
-
-  if (Buffer.isBuffer(value)) return OMITTED_BINARY_VALUE;
-  if (isStreamLike(value)) return OMITTED_STREAM_VALUE;
-  if (isFileLike(value)) return OMITTED_FILE_VALUE;
-
-  if (seen.has(value)) return "[circular omitted]";
-  seen.add(value);
-
-  if (Array.isArray(value)) {
-    return value.map((item) => sanitizeLogValue(item, allowLargePayload, seen));
-  }
-
-  const result: Record<string, SanitizedLogValue> = {};
-  for (const [key, item] of Object.entries(value)) {
-    if (isFileFieldKey(key)) {
-      result[key] = OMITTED_FILE_VALUE;
-      continue;
-    }
-    result[key] = sanitizeLogValue(item, allowLargePayload, seen);
-  }
-  return result;
-}
-
-function shouldOmitResponsePayload(headers: Record<string, unknown>) {
-  const contentDisposition = getHeaderValue(headers["content-disposition"]);
-  if (contentDisposition?.includes("attachment")) return true;
-
-  const contentType = getHeaderValue(headers["content-type"]);
-  return Boolean(contentType && !isTextResponseContentType(contentType));
-}
-
-function getHeaderValue(value: unknown) {
-  if (Array.isArray(value)) return value.join(";").toLowerCase();
-  if (typeof value === "string") return value.toLowerCase();
-  if (typeof value === "number") return String(value).toLowerCase();
-  return "";
-}
-
-function isTextResponseContentType(contentType: string) {
-  return (
-    contentType.includes("application/json") ||
-    contentType.includes("application/problem+json") ||
-    contentType.startsWith("text/") ||
-    contentType.includes("application/xml") ||
-    contentType.includes("application/x-www-form-urlencoded")
-  );
-}
-
-function isStreamLike(value: unknown) {
-  return Boolean(value && typeof value === "object" && typeof (value as { pipe?: unknown }).pipe === "function");
-}
-
-function isFileLike(value: object) {
-  const file = value as { filename?: unknown; file?: unknown; mimetype?: unknown };
-  return (
-    typeof file.filename === "string" &&
-    (isStreamLike(value) || isStreamLike(file.file) || typeof file.mimetype === "string")
-  );
-}
-
-function isFileFieldKey(key: string) {
-  return ["file", "files", "buffer", "stream"].includes(key.toLowerCase());
+function shouldSkipUrl(url: string) {
+  return SKIP_URL_PREFIXES.some((prefix) => url.startsWith(prefix));
 }
 
 export default fp(loggerPlugin, {

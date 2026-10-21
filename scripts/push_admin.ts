@@ -1,17 +1,24 @@
 /// <reference types="node" />
 
-import { drizzle } from "drizzle-orm/mysql2";
+import { drizzle } from "drizzle-orm/node-postgres";
 import { adminUser } from "../src/db/admin-user";
 import { hashPassword } from "../src/utils/password";
 
-const mysqlUrl = process.env.MYSQL_URL;
+const databaseUrl = process.env.APP_DATABASE_URL;
 
-if (!mysqlUrl) {
-  throw new Error("MYSQL_URL is required");
+if (!databaseUrl) {
+  throw new Error("APP_DATABASE_URL is required");
 }
 
-const db = drizzle(mysqlUrl);
-const password = await hashPassword("123456");
+const DEFAULT_PASSWORD = "123456";
+const seedPassword = process.env.ADMIN_SEED_PASSWORD ?? DEFAULT_PASSWORD;
+
+if (seedPassword === DEFAULT_PASSWORD) {
+  console.warn(`[seed] 未设置 ADMIN_SEED_PASSWORD，将使用默认密码 ${DEFAULT_PASSWORD}，请不要在生产环境使用`);
+}
+
+const db = drizzle(databaseUrl);
+const password = await hashPassword(seedPassword);
 
 await db
   .insert(adminUser)
@@ -22,23 +29,19 @@ await db
     password,
     status: "normal",
     created_by: 0,
-    remark: "开发环境初始管理员",
+    remark: "初始管理员账号",
   })
-  .onDuplicateKeyUpdate({
+  .onConflictDoUpdate({
+    target: adminUser.account,
     set: {
       parent_id: 0,
       nickname: "系统管理员",
       password,
       status: "normal",
-      remark: "开发环境初始管理员",
+      remark: "初始管理员账号",
     },
   });
 
-await new Promise<void>((resolve, reject) => {
-  db.$client.end((error) => {
-    if (error) reject(error);
-    else resolve();
-  });
-});
+await db.$client.end();
 
-console.log("seed admin ok: admin / 123456");
+console.log("seed admin ok: admin / ******（密码取自 ADMIN_SEED_PASSWORD，未设置时为 123456）");

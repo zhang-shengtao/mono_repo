@@ -3,7 +3,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import autoLoad from "@fastify/autoload";
 import Fastify, { LogController } from "fastify";
-import type { ZodTypeProvider } from "fastify-type-provider-zod";
+import { serializerCompiler, validatorCompiler, type ZodTypeProvider } from "fastify-type-provider-zod";
 import { formatLogTime } from "@/utils";
 import { env } from "@/core/env";
 import { registerErrorHandler } from "@/core/error-handler";
@@ -18,8 +18,10 @@ const logDir = path.isAbsolute(env.LOG_DIR) ? env.LOG_DIR : path.join(projectRoo
 
 export async function buildApp() {
   const app = Fastify({
+    bodyLimit: env.BODY_LIMIT,
+    trustProxy: env.TRUST_PROXY,
     logger: {
-      level: "info",
+      level: env.LOG_LEVEL,
       base: undefined,
       formatters: {
         level(label) {
@@ -33,7 +35,10 @@ export async function buildApp() {
           "req.headers.cookie",
           "headers.authorization",
           "headers.cookie",
+          'headers["set-cookie"]',
           "body.password",
+          "body.newPassword",
+          "body.token",
         ],
         remove: false,
       },
@@ -50,6 +55,8 @@ export async function buildApp() {
     genReqId: () => randomUUID(),
   });
   app.withTypeProvider<ZodTypeProvider>();
+  app.setValidatorCompiler(validatorCompiler);
+  app.setSerializerCompiler(serializerCompiler);
   registerResponse(app);
   registerErrorHandler(app);
   await app.register(autoLoad, {

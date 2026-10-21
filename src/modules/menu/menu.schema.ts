@@ -1,5 +1,6 @@
 import { PERMISSIONS, PERMISSION_CODES } from "@/permissions";
 import { responseSchema, errorResponseSchema } from "@/utils";
+import type { RouteAuthConfig } from "@/types/auth";
 import { z } from "zod/v4";
 
 const menuBodySchema = z.object({
@@ -50,8 +51,9 @@ export const menuAddRouteOptions = {
     },
   },
   config: {
+    auth: "admin",
     permission: PERMISSIONS.SYSTEM_MENU_ADD,
-  },
+  } satisfies RouteAuthConfig,
 };
 
 export const menuUpdateRouteOptions = {
@@ -71,8 +73,9 @@ export const menuUpdateRouteOptions = {
     },
   },
   config: {
+    auth: "admin",
     permission: PERMISSIONS.SYSTEM_MENU_PUT,
-  },
+  } satisfies RouteAuthConfig,
 };
 
 export const menuListRouteOptions = {
@@ -96,8 +99,9 @@ export const menuListRouteOptions = {
     },
   },
   config: {
+    auth: "admin",
     permission: PERMISSIONS.SYSTEM_MENU_GET,
-  },
+  } satisfies RouteAuthConfig,
 };
 
 export const menuCurrentUserRouteOptions = {
@@ -116,6 +120,7 @@ export const menuCurrentUserRouteOptions = {
       500: errorResponseSchema,
     },
   },
+  config: { auth: "admin" } satisfies RouteAuthConfig,
 };
 
 export const menuDeleteRouteOptions = {
@@ -136,6 +141,7 @@ export const menuDeleteRouteOptions = {
     },
   },
   config: {
+    auth: "admin",
     permission: PERMISSIONS.SYSTEM_MENU_DELETE,
-  },
+  } satisfies RouteAuthConfig,
 };

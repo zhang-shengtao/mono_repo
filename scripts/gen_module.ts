@@ -38,6 +38,7 @@ await writeNewFile(
   path.join(moduleDir, `${moduleName}.schema.ts`),
   `import { responseSchema, errorResponseSchema } from "@/utils";
 import { z } from "zod/v4";
+import type { RouteAuthConfig } from "@/types/auth";
 
 export const ${detailSchemaName} = {
   schema: {
@@ -54,9 +55,8 @@ export const ${detailSchemaName} = {
       500: errorResponseSchema,
     },
   },
-  config: {
-    is_auth: false,
-  },
+  // 按需改为 auth: "admin"（可加 permission）或 auth: "public"
+  config: { auth: "user" } satisfies RouteAuthConfig,
 };
 `,
 );

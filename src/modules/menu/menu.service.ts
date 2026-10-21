@@ -16,6 +16,13 @@ function metaString(meta: Record<string, unknown>, key: string) {
   return typeof value === "string" ? value.trim() : "";
 }
 
+/** 搜索时把 meta 里的 unknown 值安全转成文本（避免 [object Object]） */
+function toSearchText(value: unknown) {
+  if (typeof value === "string") return value;
+  if (typeof value === "number") return String(value);
+  return "";
+}
+
 function validateMenuShape(menu: MenuBody, parentType: MenuItem["type"] | null) {
   const title = metaString(menu.meta, "title");
   if (!title) throw new AppError(BusinessCode.PARAM_ERROR, "菜单名称不能为空");
@@ -89,9 +96,7 @@ function filterMenuTree(list: MenuTreeItem[], search: string): MenuTreeItem[] {
     const children = filterMenuTree(item.children, keyword);
     const meta = item.meta ?? {};
     const matched = [meta.title, meta.path, meta.name, item.permission].some((value) =>
-      String(value ?? "")
-        .toLowerCase()
-        .includes(keyword),
+      toSearchText(value).toLowerCase().includes(keyword),
     );
     if (matched || children.length > 0) result.push({ ...item, children });
     return result;
@@ -177,23 +182,29 @@ export default class MenuService {
           );
         }
       }
-      const [{ admin_menus_id: menuId }] = await tx.insert(adminMenus).values(menuData).$returningId();
+      const [{ admin_menus_id: menuId }] = await tx
+        .insert(adminMenus)
+        .values(menuData)
+        .returning({ admin_menus_id: adminMenus.admin_menus_id });
       const bindings: Array<{ permission: NonNullable<MenuBody["permission"]>; menuId: number }> = [];
       if (menuData.permission) bindings.push({ permission: menuData.permission, menuId });
       if (children.length > 0) {
         const childValues = children.map((item) => ({ ...item, parent_id: menuId }));
-        const insertedRows = await tx.insert(adminMenus).values(childValues).$returningId();
+        const insertedRows = await tx
+          .insert(adminMenus)
+          .values(childValues)
+          .returning({ admin_menus_id: adminMenus.admin_menus_id });
         insertedRows.forEach((row, index) => {
           const permission = childValues[index].permission;
           if (permission) bindings.push({ permission, menuId: row.admin_menus_id });
         });
       }
       for (const binding of bindings) {
-        const [result] = await tx
+        const result = await tx
           .update(code)
           .set({ bind_menu_id: binding.menuId })
           .where(and(eq(code.code, binding.permission), isNull(code.bind_menu_id)));
-        if (result.affectedRows !== 1) {
+        if ((result.rowCount ?? 0) !== 1) {
           throw new AppError(BusinessCode.CONFLICT, `权限 ${binding.permission} 已被其他菜单绑定`);
         }
       }
@@ -263,12 +274,12 @@ export default class MenuService {
             throw new AppError(BusinessCode.CONFLICT, `权限 ${newPermission} 已绑定菜单 ${permissionRow.bind_menu_id}`);
           }
           if (permissionRow.bind_menu_id === null) {
-            const [result] = await tx
+            const result = await tx
               .update(code)
               .set({ bind_menu_id: menuId })
               .where(and(eq(code.code, newPermission), isNull(code.bind_menu_id)));
 
-            if (result.affectedRows !== 1) {
+            if ((result.rowCount ?? 0) !== 1) {
               throw new AppError(BusinessCode.CONFLICT, `权限 ${newPermission} 已被其他菜单绑定`);
             }
           }

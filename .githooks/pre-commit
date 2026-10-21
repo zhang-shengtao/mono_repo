@@ -1,3 +1,14 @@
 #!/usr/bin/env sh
-npm run format
-git add -A
+# 只格式化「本次提交涉及的文件」，避免整仓重排 + 把无关改动一起提交。
+set -e
+
+staged=$(git diff --cached --name-only --diff-filter=ACM -- '*.ts' '*.js' '*.mjs' '*.cjs' '*.json' '*.md')
+
+if [ -z "$staged" ]; then
+  exit 0
+fi
+
+echo "$staged" | xargs ./node_modules/.bin/prettier --write --
+echo "$staged" | xargs git add --
+
+npm run -s typecheck

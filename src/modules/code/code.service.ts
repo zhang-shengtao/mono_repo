@@ -3,7 +3,7 @@ import { adminMenus } from "@/db/admin-menus";
 import { code } from "@/db/code";
 import { formatLogTime } from "@/utils";
 import { paginate } from "@/utils/pagination";
-import { and, asc, count, desc, eq, inArray, like, or } from "drizzle-orm";
+import { and, asc, count, desc, eq, inArray, ilike, or } from "drizzle-orm";
 import type { CodeFilterQuery, CodeListQuery, CodeUpdateBody } from "./code.schema";
 
 export default class CodeService {
@@ -31,10 +31,10 @@ export default class CodeService {
     const disabledFilter = query.is_disabled === "all" ? undefined : eq(code.is_disabled, query.is_disabled === "true");
     const searchFilter = query.search
       ? or(
-          like(code.code, keyword),
-          like(code.scope, keyword),
-          like(code.name, keyword),
-          like(code.description, keyword),
+          ilike(code.code, keyword),
+          ilike(code.scope, keyword),
+          ilike(code.name, keyword),
+          ilike(code.description, keyword),
         )
       : undefined;
     const where = and(disabledFilter, searchFilter);
@@ -68,7 +68,7 @@ export default class CodeService {
     const where = and(
       query.is_disabled === undefined ? undefined : eq(code.is_disabled, query.is_disabled),
       query.scope === undefined ? undefined : eq(code.scope, query.scope),
-      query.name === undefined ? undefined : like(code.name, `%${query.name}%`),
+      query.name === undefined ? undefined : ilike(code.name, `%${query.name}%`),
     );
 
     const list = await this.fastify.db.select().from(code).where(where).orderBy(asc(code.scope), asc(code.code));

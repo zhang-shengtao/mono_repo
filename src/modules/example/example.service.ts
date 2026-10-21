@@ -16,7 +16,7 @@ export default class ExampleService {
 
     const { password: _password, ...userInfo } = foundUser;
     const uid = randomUUID();
-    const token = await this.fastify.jwt.admin.sign({ uid });
+    const token = this.fastify.jwt.admin.sign({ uid });
     const decoded = this.fastify.jwt.admin.decode<DecodedJwtPayload>(token);
     if (!decoded?.exp) throw new AppError(BusinessCode.INTERNAL_ERROR, "服务器错误");
 
