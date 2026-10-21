@@ -1,0 +1,8 @@
+node_modules
+dist
+logs
+tmp
+drizzle
+coverage
+package-lock.json
+fastify-core-plugins-cn.md

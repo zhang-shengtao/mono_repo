@@ -1,0 +1,52 @@
+{
+  "name": "fastify_server",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "engines": {
+    "node": ">=25.0.0"
+  },
+  "scripts": {
+    "dev": "node --env-file=.env.dev --watch --import tsx src/server.ts",
+    "dev:prod": "node --env-file=.env.prod --watch --import tsx src/server.ts",
+    "build": "tsx scripts/build.ts",
+    "start": "node --env-file=.env.prod dist/server.js",
+    "format": "prettier . --write",
+    "gen:module": "tsx scripts/gen_module.ts",
+    "prepare:hooks": "git config core.hooksPath .githooks",
+    "db:push:dev": "node --env-file=.env.dev --import tsx scripts/push_db.ts",
+    "db:push:prod": "node --env-file=.env.prod --import tsx scripts/push_db.ts",
+    "db:seed:admin:dev": "node --env-file=.env.dev --import tsx scripts/push_admin.ts",
+    "db:seed:permissions:dev": "node --env-file=.env.dev --import tsx scripts/push_permissions.ts",
+    "db:seed:permissions:prod": "node --env-file=.env.prod --import tsx scripts/push_permissions.ts"
+  },
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "@fastify/autoload": "^6.3.1",
+    "@fastify/jwt": "^10.1.0",
+    "@fastify/multipart": "^10.0.0",
+    "@fastify/redis": "^7.2.0",
+    "@fastify/routes": "^6.0.2",
+    "@fastify/swagger": "^9.7.0",
+    "@fastify/websocket": "^11.2.0",
+    "@scalar/fastify-api-reference": "^1.58.0",
+    "drizzle-orm": "^0.45.2",
+    "fastify": "^5.10.0",
+    "fastify-plugin": "^5.1.0",
+    "fastify-type-provider-zod": "^6.1.0",
+    "mysql2": "^3.22.6",
+    "pino": "^10.3.1",
+    "pino-abstract-transport": "^3.0.0",
+    "svg-captcha-fixed": "^1.5.2",
+    "zod": "^4.4.3"
+  },
+  "devDependencies": {
+    "@types/node": "^25.9.2",
+    "drizzle-kit": "^0.31.10",
+    "prettier": "^3.8.3",
+    "tsc-alias": "^1.8.17",
+    "tsx": "^4.22.4",
+    "typescript": "^6.0.3"
+  }
+}
