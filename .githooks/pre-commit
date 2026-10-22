@@ -11,4 +11,5 @@ fi
 echo "$staged" | xargs ./node_modules/.bin/prettier --write --
 echo "$staged" | xargs git add --
 
-npm run -s typecheck
+# 根脚本 typecheck = pnpm -r typecheck（shared 与 api 都跑）
+pnpm -s typecheck

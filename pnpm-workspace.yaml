@@ -1,0 +1,16 @@
+packages:
+  - "apps/*"
+  - "packages/*"
+
+# pnpm 默认禁止依赖执行 postinstall 构建脚本。
+# 注意 pnpm 12 的字段名是 allowBuilds，而且取「包名 → 布尔」的映射（老的 onlyBuiltDependencies
+# 是数组，在 v12 已不生效，写成数组会直接解析失败）。
+# tsx / drizzle-kit 依赖的 esbuild 需要放行，否则安装会以 ERR_PNPM_IGNORED_BUILDS 失败。
+allowBuilds:
+  esbuild: true
+
+# 版本单一定义处：多个包依赖同一个包时，版本写在这里，包的 package.json 用 "catalog:" 引用。
+# 声明仍在各自包内（各自的 node_modules/.bin 齐全），但版本只有一个来源，不会将来漂成两份。
+catalog:
+  typescript: ^6.0.3
+  zod: ^4.4.3

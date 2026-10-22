@@ -1,0 +1,312 @@
+# @repo/services · 后端 API 服务
+
+> **一句话**：本仓库（pnpm workspace + Turborepo）里唯一的后端应用，基于 **Fastify 5 + TypeScript +
+> PostgreSQL（Drizzle ORM）+ Redis** 提供 REST API，是 `apps/admin` 管理后台的数据来源；
+> `pnpm build` 会产出可以单独拷到服务器、只靠 npm 就能跑起来的 `dist/`。
+
+| 项目         | 值                                                                     |
+| ------------ | ---------------------------------------------------------------------- |
+| 包名         | `@repo/services`（`apps/services`）                                    |
+| 角色         | 可部署应用（不是被引用的库）                                           |
+| 运行环境     | Node.js >= 25、PostgreSQL >= 14、Redis >= 6                            |
+| 默认端口     | `.env` 的 `PORT`（模板 3000）                                          |
+| 接口文档     | `http://localhost:<PORT>/docs`（`API_DOCS_ENABLED=false` 时关闭）      |
+| 构建产物     | `apps/services/dist/`（既是编译输出，也是一个完整的 Node 项目）        |
+| 依赖的仓库包 | `@repo/shared`（`workspace:*`，构建时 vendor 进 `dist/vendor/shared`） |
+
+---
+
+## 一、这个项目是干嘛的
+
+一句话：**一个自带认证、权限、日志、接口文档和数据库同步能力的 Fastify 后端脚手架**，业务功能按模块挂在
+`src/modules/<module>/` 下。
+
+| 能力       | 说明                                                                                       |
+| ---------- | ------------------------------------------------------------------------------------------ |
+| 管理端接口 | `/admin/*`：管理员登录/登出、账号增删改查、权限分配、菜单 CRUD、权限码查询、图形验证码     |
+| 开放端接口 | `/api/*`：健康检查、示例 SSE 对话、示例 WebSocket、示例 AI 接口                            |
+| 身份认证   | 两套独立 JWT（admin / user），密钥与 issuer 分离，由路由的 `config.auth` 决定用哪一套      |
+| 权限控制   | `config.auth.permission` 编译期类型检查 + 运行时查库；菜单 / 按钮权限全部由数据库驱动      |
+| 数据访问   | PostgreSQL（Drizzle ORM，表结构即 `src/db/*.ts`）+ Redis（验证码、会话等）                 |
+| 接口文档   | `@fastify/swagger` 生成 OpenAPI 3.0，`@scalar/fastify-api-reference` 渲染 `/docs`          |
+| 结构化日志 | Pino，按天切分落盘到 `logs/router/*.log` 与 `logs/log/*.log`（敏感字段脱敏）               |
+| 独立部署   | `dist/` 带真实依赖版本、`drizzle.config.mjs` 和 `db:*` 脚本，`npm install --omit=dev` 即可 |
+
+已实现的业务模块（接口清单，均定义在 `src/modules/<module>/<module>.route.ts`）：
+
+| 模块      | 主要接口                                                                                                                                                                    | 干什么                            |
+| --------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------- |
+| `user`    | `GET/POST/PUT /admin/user/list`、`DELETE /admin/user/list/:user_id`、`GET/PUT .../permissions`、`GET /admin/user/info`、`POST /admin/user/login`、`POST /admin/user/logout` | 管理员账号管理与登录              |
+| `menu`    | `GET/POST/PUT /admin/menu/list`、`DELETE /admin/menu/list/:admin_menus_id`、`GET /admin/user/menus`                                                                         | 动态菜单树（前端路由 / 按钮权限） |
+| `code`    | `GET /admin/code/list`、`PUT /admin/code/list`、`GET /admin/code/filter`                                                                                                    | 权限码 / 字典数据                 |
+| `global`  | `GET /api/health/ready`、`GET /admin/captcha/image`                                                                                                                         | 健康检查、SVG 图形验证码          |
+| `example` | `POST /admin/example/login`、`POST /api/example/chat`（SSE）、`GET /api/example/ws`（WebSocket）                                                                            | 实时通信与登录流程的示例          |
+| `ai`      | `GET /api/ai/detail`                                                                                                                                                        | AI 相关示例接口                   |
+
+---
+
+## 二、目录结构与每个目录的作用
+
+```
+apps/services/
+├── src/                          # 源码（tsconfig 的 rootDir，编译后原样映射到 dist/）
+│   ├── server.ts                 # 进程入口：启动、启动失败兜底、SIGINT/SIGTERM 优雅停机、退出前 flush 日志
+│   ├── app.ts                    # 应用装配：logger / bodyLimit / trustProxy / 校验器 / autoload 插件和路由
+│   ├── core/                     # 与业务无关的基础设施
+│   │   ├── env.ts                #   环境变量 schema（zod），缺失或非法时在启动阶段给出可读原因
+│   │   ├── app-error.ts          #   AppError / describeError（错误归一）
+│   │   ├── error-handler.ts      #   统一错误响应，保留 HTTP 语义
+│   │   ├── response.ts           #   reply.success / reply.error / x-request-id
+│   │   ├── jwt-guard.ts          #   JWT 鉴权 + 权限校验的 preHandler 工厂
+│   │   └── access-log-transport.mjs  # 自定义 pino transport，按天切分文件（.mjs 由 build 手工拷进 dist）
+│   ├── db/                       # 数据层
+│   │   ├── admin-user.ts         #   表 admin_user
+│   │   ├── admin-menus.ts        #   表 admin_menus
+│   │   ├── permissions.ts        #   表 permissions
+│   │   ├── code.ts               #   表 code（权限码 / 字典）
+│   │   └── script/               #   一次性脚本（不会被当成 schema，能编进 dist）
+│   │       ├── push-db.ts        #     db:push：drizzle-kit push，schema ↔ 活库 diff 后执行 DDL
+│   │       ├── admin-user.ts     #     db:seed:admin：初始化管理员账号（会重置密码，只手动跑）
+│   │       └── permissions.ts    #     db:seed:permissions：把权限码种子同步进 code 表
+│   ├── modules/<module>/         # 业务模块，一个模块三个文件
+│   │   ├── <module>.route.ts     #   路由声明：路径 + 鉴权 + zod schema + 调用 service
+│   │   ├── <module>.schema.ts    #   请求/响应 schema 与路由配置（自动生成 OpenAPI）
+│   │   └── <module>.service.ts   #   业务逻辑与 SQL
+│   ├── plugins/                  # Fastify 插件，按文件名注册：jwt-admin / jwt-user / logger /
+│   │                             #   multipart / postgres / redis / swagger / websocket
+│   ├── permissions/              # 权限码常量与种子数据（index.ts 汇总，menu.ts / user.ts 分域）
+│   ├── types/                    # auth.ts（RouteAuthConfig 判别联合）、fastify.d.ts（实例类型增强）
+│   └── utils/                    # 分页器、密码哈希、日志时间格式化等
+├── scripts/                      # 仓库内工具脚本（不在 src 别名与类型检查范围内）
+│   ├── build.ts                  #   打包脚本：tsc → tsc-alias → 清理 sourcemap → 生成 dist/package.json → vendor shared
+│   └── gen_module.ts             #   gen:module：生成新业务模块脚手架
+├── logs/                         # 运行期日志（按天切分，不入库）
+├── dist/                         # 构建产物（build 每次清空，不入库）
+├── .env.example                  # 环境变量模板；复制成 .env 使用，.env 不入库
+├── drizzle.config.ts             # drizzle-kit 配置：schema = src/db/*.ts，连库读 APP_DATABASE_URL
+├── fastify-core-plugins-cn.md    # Fastify Core Plugins 中文速查（社区中文站整理，写插件前先查）
+├── tsconfig.json                 # module ESNext / moduleResolution Bundler / @/* → ./src/*
+└── package.json                  # dev / build / typecheck / gen:module / db:* 脚本与依赖
+```
+
+几条读目录时容易踩的点：
+
+- `src/db/*.ts` **只放表定义**：顶层 `*.ts` 会被 drizzle-kit 当成 schema（`schema: "src/db/*.ts"`）。
+  工具脚本一律放子目录 `src/db/script/`，否则会被当成表。
+- `plugins/`、`modules/` 都由 `@fastify/autoload` 自动加载：插件按文件名加载，业务路由只匹配 `*.route.ts`。
+  新增文件不用改 `app.ts`，但**文件名必须符合约定**。
+- `scripts/` 不在 `tsconfig.json` 的 `include`（只有 `src/**/*.ts`）里，所以其中不能用 `@/` 别名，
+  要写相对路径（`../src/db/code`），也不会进 `dist/`。
+
+---
+
+## 三、技术栈
+
+| 分类       | 选型                                                             | 用途                                      |
+| ---------- | ---------------------------------------------------------------- | ----------------------------------------- |
+| 运行时     | Node.js >= 25（原生 ESM、`--env-file`、`--watch`）               | 不依赖 dotenv / nodemon                   |
+| 语言       | TypeScript 6.x（`strict` + `verbatimModuleSyntax`）              | 版本由仓库 `catalog:` 统一，不在本包写死  |
+| Web 框架   | Fastify 5.x + `@fastify/autoload`                                | 路由与插件按目录自动加载                  |
+| 参数校验   | Zod 4 + `fastify-type-provider-zod`                              | 校验器/序列化器 + 由 schema 生成 OpenAPI  |
+| 数据库     | PostgreSQL + Drizzle ORM 0.45 / drizzle-kit 0.31                 | 表结构用 TS 描述，`push` 直接同步库       |
+| 缓存       | Redis（`@fastify/redis`）                                        | 验证码、会话等                            |
+| 认证       | `@fastify/jwt`（admin / user 两套密钥与 issuer）                 | Bearer token                              |
+| 文档       | `@fastify/swagger` + `@scalar/fastify-api-reference`             | `/docs` 界面                              |
+| 其它插件   | `@fastify/multipart`、`@fastify/websocket`、`svg-captcha-fixed`  | 上传、WebSocket、图形验证码               |
+| 日志       | Pino 10 + `pino-abstract-transport`（自定义按天切分）            | 结构化访问日志                            |
+| 构建工具链 | `tsc` + `tsc-alias`（**锁 1.9.1**）+ `tsx`                       | 编译、改写 `@/` 别名、dev 直跑 TS         |
+| 代码规范   | Prettier（`printWidth 120`、LF、2 空格）+ `.githooks/pre-commit` | 在仓库根执行 `pnpm format` / `pnpm check` |
+
+---
+
+## 四、怎么打包（构建）与部署
+
+### 4.1 开发
+
+```bash
+# 仓库根。首次需要 .env
+cp apps/services/.env.example apps/services/.env
+pnpm dev:services                 # = turbo dev --filter=@repo/services
+```
+
+`dev` 脚本是 `node --env-file=.env --watch --import tsx src/server.ts`：`.env` 不存在会**直接启动失败**
+（宁可起不来，也不要带着错配置跑）。启动后 API 在 `http://localhost:<PORT>`，文档在 `/docs`。
+
+### 4.2 打包
+
+```bash
+pnpm build                        # 仓库根，turbo 会先构建 @repo/shared 再构建本包
+pnpm --filter @repo/services build   # 只打后端（要求 packages/shared/dist 已存在）
+```
+
+`build` 执行 `tsx scripts/build.ts`，按顺序做 8 件事：
+
+1. 清空 `dist/`（有目录名与越界校验，删错路径会直接抛错）；
+2. `tsc -p tsconfig.json` 编译 `src/`；
+3. `tsc-alias` 把 `@/xxx` 别名改写成产物内的相对路径，并补 `.js` 扩展名；
+4. 删除所有 `.map`；
+5. 拷贝无法被 tsc 处理的运行时文件：`src/core/access-log-transport.mjs`；
+6. 生成 `dist/drizzle.config.mjs`（schema 指向编译后的 `db/*.js`，否则产物里没有 TS schema）；
+7. 生成 `dist/package.json`：`dependencies` 用构建机实际安装的版本，并写好 `start` / `prestart` / `db:*` 脚本；
+8. 把 `packages/shared/dist` vendor 到 `dist/vendor/shared`，依赖声明改成 `file:./vendor/shared`。
+
+产物结构：
+
+```
+dist/
+├── package.json          # 真实 dependencies + start / prestart / db:* 脚本
+├── drizzle.config.mjs    # 部署侧 drizzle-kit push 用的配置
+├── vendor/shared/        # @repo/shared 的编译产物（npm 不认 workspace: 协议）
+├── server.js  app.js
+└── core/ db/ modules/ permissions/ plugins/ types/ utils/
+```
+
+为什么要有 `vendor/shared`：编译产物里保留的是裸包名 `import { BusinessCode } from "@repo/shared"`，
+而 `package.json` 里写的是 pnpm 专属的 `workspace:*`，npm 不认。所以 build 把它拷进 `dist/vendor/shared`，
+并把依赖声明成 `file:./vendor/shared`，`npm install` 时才会落到 `dist/node_modules/@repo/shared`。
+不能直接放进 `dist/node_modules/`——`npm ci` 会先删掉整个 `node_modules`，放里面必丢。
+
+### 4.3 运行与部署
+
+```bash
+# A. 在仓库里跑产物（依赖由 pnpm 装在 apps/services/）
+pnpm start                        # 仓库根，= npm --prefix apps/services/dist start
+
+# B. 把整个 dist/ 拷到服务器，只靠 npm
+cd dist
+npm install --omit=dev            # 有 lockfile 时用 npm ci --omit=dev
+npm start                         # prestart：db:push + 权限码种子；然后 node --env-file-if-exists=.env server.js
+```
+
+部署要点：
+
+- **只有 `dependencies` 上服务器**（`--omit=dev`）：`tsx` / `typescript` / `tsc-alias` 不装，
+  所以 `dev`、`gen:module` 只能在仓库里跑。`drizzle-kit` 例外——它写在 `dependencies` 里，
+  跟着 dist 装进去，部署侧才能跑 `db:push`。
+- **`prestart` 自动同步表结构**：`npm run db:push && npm run db:seed:permissions`，失败则服务不启动。
+  `db:seed:admin` 故意不在自动流程里——它带 `onConflictDoUpdate(password)`，自动跑等于每次发版重置管理员密码。
+- **环境变量优先用平台注入**（systemd `EnvironmentFile=` / Docker `--env-file` / K8s Secret）。
+  产物侧用的是 `--env-file-if-exists`，没有 `.env` 不会失败；要放文件就读**执行目录**下的 `dist/.env`。
+- `pnpm build` 每次清空 `dist/`（含手工装进去的 `node_modules`），所以一份 dist 对应一个版本，
+  升级就是「整目录替换 + 重装依赖」。
+- 日志写到包根下的 `logs/`：`app.ts` 用 `import.meta.url` 反推包根，dist 单独部署时它自己就是包根，
+  不会写到部署目录外面。
+- 接口文档用 `API_DOCS_ENABLED` 控制，生产建议 `false`。
+- 构建自检：`grep -r 'from "[^".]*index\.js"' apps/services/dist` 应为空（防止 `tsc-alias` 把裸包名补全成
+  `zod/v4/index.js` 这类非导出子路径）。
+
+### 4.4 数据库表结构同步
+
+**只有一条命令：`db:push` = `drizzle-kit push`**，「schema ↔ 活库 diff 后直接执行 DDL」，
+仓库里不生成、也不提交任何 SQL 迁移文件。
+
+```bash
+pnpm db:push                      # 仓库根；读 src/db/*.ts
+# 部署侧（dist 目录内）
+npm run db:push                   # 读编译后的 db/*.js；npm start 的 prestart 会自动跑
+```
+
+⚠️ push 是「以 schema 为准反向覆盖数据库」：库里多出来的列 / 表会被**直接删除**，没有回滚记录。
+终端里删列会要求确认，**服务器上没有 TTY 时它不提问、直接执行**。生产变更建议先在开发库跑一遍。
+多实例同时启动时 `db/script/push-db.ts` 会先取 Postgres advisory lock，把并发 DDL 串行化。
+
+### 4.5 命令速查
+
+| 命令（仓库根）                           | 等价                                          | 说明                                           |
+| ---------------------------------------- | --------------------------------------------- | ---------------------------------------------- |
+| `pnpm dev:services`                      | `turbo dev --filter=@repo/services`           | 开发模式，`--watch` 热重启                     |
+| `pnpm build`                             | `turbo build`                                 | 先构建 shared 再构建本包                       |
+| `pnpm --filter @repo/services typecheck` | `tsc --noEmit -p tsconfig.json`               | 只做 `src/` 类型检查                           |
+| `pnpm start`                             | `npm --prefix apps/services/dist start`       | 跑 dist 里的 `start`（带 `prestart` 同步）     |
+| `pnpm gen:module <name>`                 | `tsx scripts/gen_module.ts`                   | 生成 `<module>.route/schema/service.ts` 脚手架 |
+| `pnpm db:push`                           | `tsx src/db/script/push-db.ts`                | 改完表结构就跑它                               |
+| `pnpm db:push:dist`                      | `npm --prefix apps/services/dist run db:push` | 验证产物侧 push（需先注入 `APP_DATABASE_URL`） |
+| `pnpm db:seed:admin`                     | `tsx src/db/script/admin-user.ts`             | 初始化管理员账号（首次上线手动跑）             |
+| `pnpm db:seed:permissions`               | `tsx src/db/script/permissions.ts`            | 同步权限码种子                                 |
+
+`db:*` / `gen:module` 故意不进 turbo：它们是一次性、有副作用或部署期命令，走缓存只会白白算 hash。
+
+---
+
+## 五、环境变量
+
+`--env-file` 加载，不依赖 dotenv。**只有一份 `.env`**（不入库，开发/部署共用，值按环境填），模板是 `.env.example`。
+
+| 变量                                   | 默认值                         | 说明                                              |
+| -------------------------------------- | ------------------------------ | ------------------------------------------------- |
+| `PORT` / `HOST`                        | `3000` / `0.0.0.0`             | 监听地址                                          |
+| `TRUST_PROXY`                          | `false`                        | 在 Nginx 等反代后面时设 `true`，否则拿不到真实 IP |
+| `BODY_LIMIT`                           | `1048576`                      | 请求体上限（字节）                                |
+| `LOG_DIR` / `LOG_LEVEL`                | `logs` / `info`                | 日志目录与级别                                    |
+| `API_DOCS_ENABLED`                     | `true`                         | 是否开放 `/docs`                                  |
+| `APP_DATABASE_URL`                     | 必填                           | PostgreSQL 连接串                                 |
+| `REDIS_URL` / `REDIS_PREFIX`           | 必填 / `PREFIX:`               | Redis 连接串与 key 前缀                           |
+| `ADMIN_JWT_SECRET` / `USER_JWT_SECRET` | 必填                           | 两套 JWT 密钥                                     |
+| `JWT_ISSUER_ADMIN` / `JWT_ISSUER_USER` | `admin-system` / `user-system` | JWT issuer                                        |
+| `ACCESS_TOKEN_TTL`                     | `7d`                           | token 过期时间                                    |
+| `UPLOAD_MAX_FILE_SIZE`                 | `10485760`                     | 上传大小上限（字节）                              |
+
+两个高频坑：
+
+- `.env` 必须是 **UTF-8 无 BOM**，否则 `--env-file` 会丢掉第一个变量。
+- `--env-file` **不会覆盖已存在的环境变量**。机器上有同名变量（比如别处导出的 `DATABASE_URL`）会静默顶掉配置，
+  所以数据库变量特意命名为 `APP_DATABASE_URL`，启动日志里也会打印实际连上的库名。
+
+---
+
+## 六、认证与权限
+
+两套独立 JWT 校验器，由路由的 `config.auth` 决定谁接管，**与 URL 前缀无关**：
+
+```ts
+// 管理端：admin 校验器（额外校验管理员状态 + permission）
+config: { auth: "admin", permission: PERMISSIONS.SYSTEM_USER_GET } satisfies RouteAuthConfig
+
+// 用户端：user 校验器
+config: { auth: "user" } satisfies RouteAuthConfig
+
+// 公开接口：两套校验器都跳过
+config: { auth: "public" } satisfies RouteAuthConfig
+```
+
+- **未声明 `config.auth`（或整个 `config`）等同公开**——需要鉴权的接口必须显式声明。
+- `permission` 只存在于 `auth: "admin"` 分支（`RouteAuthConfig` 是判别联合）；
+  `auth: "user"` / `"public"` 带 `permission` 会在编译期报错。
+- `src/permissions/` 的常量只服务本包：① 路由声明期的编译期 typo 检查；② `db:seed:permissions` 同步 `code` 表。
+  **运行时权限以数据库为准**；前端通过 `/code` 系列接口读表，不要 import 这里的常量。
+
+---
+
+## 七、日志
+
+- 访问日志：`logs/router/YYYY-MM-DD.log`；应用日志：`logs/log/YYYY-MM-DD.log`。
+- 只记请求（method / url / ip / body / query / params / headers），响应侧不落盘，避免响应体里的 token 进磁盘；
+  `/docs`、`/api/health` 前缀不记。
+- 脱敏：`authorization`、`cookie`、`set-cookie`、`password`、`newPassword`、`token`。
+- 收到 `SIGINT` / `SIGTERM` 会先 `app.close()`、flush 日志再退出（最多等 2s）。
+
+---
+
+## 八、约定与已知坑
+
+1. **共享代码边界**：`packages/shared` 不允许依赖 `fastify`；Fastify 的类型增强只能留在 `src/types/fastify.d.ts`。
+2. **`@/*` 别名只属于本包**，定义在 `apps/services/tsconfig.json`，不要提到根 `tsconfig.base.json`。
+3. **`tsc-alias` 必须锁 `1.9.1`（精确版本，不要加 `^`）**：1.9.2+ 的 `--resolve-full-paths` 会把裸包名补全成
+   `zod/v4/index.js`、`drizzle-orm/pg-core/index.js`，这些子路径不在对方 `exports` 里，产物会以
+   `ERR_PACKAGE_PATH_NOT_EXPORTED` 启动失败。
+4. **`typescript` 不能提到仓库根**：`scripts/build.ts` 硬编码了 `apps/services/node_modules/.bin/tsc`，
+   提到根会让 `pnpm build` 直接 ENOENT。
+5. **改完 `packages/shared` 要重新 build**：单独跑后端前先 `pnpm --filter @repo/shared build`，
+   否则会报 `ERR_MODULE_NOT_FOUND: @repo/shared`。
+6. **所有相对路径以包目录为基准**（`pnpm --filter` 会把 CWD 切到 `apps/services`）。
+   不要在仓库根直接 `node apps/services/src/server.ts`——`--env-file` 与 `@/*` 别名都会失效。
+7. **新增模块**：`pnpm gen:module <name>`，保持 `<module>.route|schema|service.ts` 三件套；
+   新增插件放到 `src/plugins/xxx.ts`，插件名与文件名一致。
+8. **改表结构**：改 `src/db/*.ts` → `pnpm db:push`；想让任务按依赖顺序跑，就往 `turbo.json` 的 `tasks` 里加。
+
+---
+
+## 九、接口文档
+
+启动后访问 `/docs`（Scalar UI，OpenAPI 3.0.3），Bearer 认证在页面右上角填入。
+文档由各路由 `<module>.schema.ts` 里的 zod schema 自动生成，**新接口必须带 schema**，否则不会出现在文档里。
