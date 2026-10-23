@@ -5,9 +5,7 @@ export function registerResponse(app: FastifyInstance) {
     reply.header("x-request-id", request.id);
   });
 
-  app.decorateReply("success", function success<
-    T,
-  >(this: FastifyReply, data: T, message = "success", code = BusinessCode.SUCCESS) {
+  app.decorateReply("success", function success<T>(this: FastifyReply, data: T, message = "success", code = BusinessCode.SUCCESS) {
     return this.send({ code, message, data, request_id: this.request.id });
   });
 

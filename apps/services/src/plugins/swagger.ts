@@ -5,7 +5,6 @@ import { jsonSchemaTransform } from "fastify-type-provider-zod";
 import { env } from "@/core/env";
 
 async function swaggerPlugin(fastify: FastifyInstance) {
-  // 接口文档按环境开关，生产默认不暴露
   if (!env.API_DOCS_ENABLED) return;
 
   await fastify.register(swagger, {

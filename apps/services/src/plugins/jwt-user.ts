@@ -5,7 +5,7 @@ import { createJwtGuard } from "@/core/jwt-guard";
 const userJwtPlugin = createJwtGuard({
   realm: "user",
   secret: env.USER_JWT_SECRET,
-  issuer: env.JWT_ISSUER_USER,
+  issuer: "user-system",
   expiresIn: env.ACCESS_TOKEN_TTL,
 });
 

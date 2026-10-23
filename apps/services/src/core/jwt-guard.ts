@@ -20,14 +20,6 @@ interface JwtVerifier {
   verify<T>(token: string): T;
 }
 
-/**
- * 生成一套 token 校验器。
- *
- * 命中规则完全由路由的 `config.auth` 决定（不再依赖 URL 前缀）：
- * - `config.auth === "admin"` → 只有 admin 校验器会执行
- * - `config.auth === "user"`  → 只有 user 校验器会执行
- * - `config.auth === false`   → 两套都跳过
- */
 export function createJwtGuard(options: JwtGuardOptions) {
   return async function jwtGuard(fastify: FastifyInstance) {
     await fastify.register(fastifyJwt, {
@@ -44,7 +36,6 @@ export function createJwtGuard(options: JwtGuardOptions) {
 
     fastify.addHook("preHandler", async (request) => {
       const config = request.routeOptions.config;
-      // 不是本校验器负责的路由（含公开接口）直接放行，由另一套校验器处理
       if (config?.auth !== options.realm) return;
 
       const payload = verifyRequestToken(fastify, options.realm, request.headers.authorization);

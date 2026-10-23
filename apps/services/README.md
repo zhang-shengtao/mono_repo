@@ -4,15 +4,15 @@
 > PostgreSQL（Drizzle ORM）+ Redis** 提供 REST API，是 `apps/admin` 管理后台的数据来源；
 > `pnpm build` 会产出可以单独拷到服务器、只靠 npm 就能跑起来的 `dist/`。
 
-| 项目         | 值                                                                     |
-| ------------ | ---------------------------------------------------------------------- |
-| 包名         | `@repo/services`（`apps/services`）                                    |
-| 角色         | 可部署应用（不是被引用的库）                                           |
-| 运行环境     | Node.js >= 25、PostgreSQL >= 14、Redis >= 6                            |
-| 默认端口     | `.env` 的 `PORT`（模板 3000）                                          |
-| 接口文档     | `http://localhost:<PORT>/docs`（`API_DOCS_ENABLED=false` 时关闭）      |
-| 构建产物     | `apps/services/dist/`（既是编译输出，也是一个完整的 Node 项目）        |
-| 依赖的仓库包 | `@repo/shared`（`workspace:*`，构建时 vendor 进 `dist/vendor/shared`） |
+| 项目         | 值                                                                                   |
+| ------------ | ------------------------------------------------------------------------------------ |
+| 包名         | `@repo/services`（`apps/services`）                                                  |
+| 角色         | 可部署应用（不是被引用的库）                                                         |
+| 运行环境     | Node.js >= 25、PostgreSQL >= 14、Redis >= 6                                          |
+| 默认端口     | `.env` 的 `PORT`（模板 3000）                                                        |
+| 接口文档     | `http://localhost:<PORT>/docs`（`API_DOCS_ENABLED=false` 时关闭）                    |
+| 构建产物     | `apps/services/dist/`（既是编译输出，也是一个完整的 Node 项目）                      |
+| 依赖的仓库包 | `@repo/shared`、`@repo/logger`（`workspace:*`，构建时自动 vendor 进 `dist/vendor/`） |
 
 ---
 
@@ -29,7 +29,7 @@
 | 权限控制   | `config.auth.permission` 编译期类型检查 + 运行时查库；菜单 / 按钮权限全部由数据库驱动      |
 | 数据访问   | PostgreSQL（Drizzle ORM，表结构即 `src/db/*.ts`）+ Redis（验证码、会话等）                 |
 | 接口文档   | `@fastify/swagger` 生成 OpenAPI 3.0，`@scalar/fastify-api-reference` 渲染 `/docs`          |
-| 结构化日志 | Pino，按天切分落盘到 `logs/router/*.log` 与 `logs/log/*.log`（敏感字段脱敏）               |
+| 结构化日志 | `@repo/logger`：子进程写盘，按天切分 + 10MB 分卷 + 只留 30 天；脱敏在子进程做              |
 | 独立部署   | `dist/` 带真实依赖版本、`drizzle.config.mjs` 和 `db:*` 脚本，`npm install --omit=dev` 即可 |
 
 已实现的业务模块（接口清单，均定义在 `src/modules/<module>/<module>.route.ts`）：
@@ -66,6 +66,7 @@ apps/services/
 │   │   ├── code.ts               #   表 code（权限码 / 字典）
 │   │   └── script/               #   一次性脚本（不会被当成 schema，能编进 dist）
 │   │       ├── push-db.ts        #     db:push：drizzle-kit push，schema ↔ 活库 diff 后执行 DDL
+│   │       ├── recreate-db.ts    #     db:reset 第一步：DROP ... WITH (FORCE) 后重建空库
 │   │       ├── admin-user.ts     #     db:seed:admin：初始化管理员账号（会重置密码，只手动跑）
 │   │       └── permissions.ts    #     db:seed:permissions：把权限码种子同步进 code 表
 │   ├── modules/<module>/         # 业务模块，一个模块三个文件
@@ -78,7 +79,8 @@ apps/services/
 │   ├── types/                    # auth.ts（RouteAuthConfig 判别联合）、fastify.d.ts（实例类型增强）
 │   └── utils/                    # 分页器、密码哈希、日志时间格式化等
 ├── scripts/                      # 仓库内工具脚本（不在 src 别名与类型检查范围内）
-│   ├── build.ts                  #   打包脚本：tsc → tsc-alias → 清理 sourcemap → 生成 dist/package.json → vendor shared
+│   ├── build.ts                  #   打包脚本：tsc → tsc-alias → 清理 sourcemap → vendor 本地包 → 生成 dist/package.json
+│   ├── workspace-vendor.ts       #   vendor 逻辑：按 package.json 自动识别 workspace 依赖，不写死包名
 │   └── gen_module.ts             #   gen:module：生成新业务模块脚手架
 ├── logs/                         # 运行期日志（按天切分，不入库）
 ├── dist/                         # 构建产物（build 每次清空，不入库）
@@ -135,20 +137,21 @@ pnpm dev:services                 # = turbo dev --filter=@repo/services
 ### 4.2 打包
 
 ```bash
-pnpm build                        # 仓库根，turbo 会先构建 @repo/shared 再构建本包
-pnpm --filter @repo/services build   # 只打后端（要求 packages/shared/dist 已存在）
+pnpm build                        # 仓库根，turbo 会先按依赖顺序构建被依赖的仓库包
+pnpm --filter @repo/services build   # 只打后端（要求 packages/*/dist 已存在）
 ```
 
-`build` 执行 `tsx scripts/build.ts`，按顺序做 8 件事：
+`build` 执行 `tsx scripts/build.ts`，按顺序做 7 件事：
 
 1. 清空 `dist/`（有目录名与越界校验，删错路径会直接抛错）；
 2. `tsc -p tsconfig.json` 编译 `src/`；
 3. `tsc-alias` 把 `@/xxx` 别名改写成产物内的相对路径，并补 `.js` 扩展名；
 4. 删除所有 `.map`；
-5. 拷贝无法被 tsc 处理的运行时文件：`src/core/access-log-transport.mjs`；
-6. 生成 `dist/drizzle.config.mjs`（schema 指向编译后的 `db/*.js`，否则产物里没有 TS schema）；
-7. 生成 `dist/package.json`：`dependencies` 用构建机实际安装的版本，并写好 `start` / `prestart` / `db:*` 脚本；
-8. 把 `packages/shared/dist` vendor 到 `dist/vendor/shared`，依赖声明改成 `file:./vendor/shared`。
+5. 生成 `dist/drizzle.config.mjs`（schema 指向编译后的 `db/*.js`，否则产物里没有 TS schema）；
+6. vendor 所有 workspace 依赖：`dependencies` 里凡是 `workspace:*` / `link:…` / 指向仓库内的 `file:…`，
+   自动把构建产物拷进 `dist/vendor/<slug>`（实现见 `scripts/workspace-vendor.ts`）；
+7. 生成 `dist/package.json`：本地包写成 `file:./vendor/<slug>`，外部依赖固定成构建机实际安装的版本，
+   并写好 `start` / `prestart` / `db:*` 脚本。
 
 产物结构：
 
@@ -156,15 +159,33 @@ pnpm --filter @repo/services build   # 只打后端（要求 packages/shared/dis
 dist/
 ├── package.json          # 真实 dependencies + start / prestart / db:* 脚本
 ├── drizzle.config.mjs    # 部署侧 drizzle-kit push 用的配置
-├── vendor/shared/        # @repo/shared 的编译产物（npm 不认 workspace: 协议）
+├── vendor/               # workspace 包的编译产物（npm 不认 workspace: 协议）
+│   ├── shared/           #   @repo/shared → file:./vendor/shared
+│   └── logger/           #   @repo/logger → file:./vendor/logger
 ├── server.js  app.js
 └── core/ db/ modules/ permissions/ plugins/ types/ utils/
 ```
 
-为什么要有 `vendor/shared`：编译产物里保留的是裸包名 `import { BusinessCode } from "@repo/shared"`，
-而 `package.json` 里写的是 pnpm 专属的 `workspace:*`，npm 不认。所以 build 把它拷进 `dist/vendor/shared`，
-并把依赖声明成 `file:./vendor/shared`，`npm install` 时才会落到 `dist/node_modules/@repo/shared`。
-不能直接放进 `dist/node_modules/`——`npm ci` 会先删掉整个 `node_modules`，放里面必丢。
+为什么要有 `vendor/`：编译产物里保留的是裸包名 `import { BusinessCode } from "@repo/shared"`，
+而 `package.json` 里写的是 pnpm 专属的 `workspace:*`，npm 不认。所以 build 把包产物拷进
+`dist/vendor/shared`，并把依赖声明成 `file:./vendor/shared`，`npm install` 时才会落到
+`dist/node_modules/@repo/shared`。不能直接放进 `dist/node_modules/`——`npm ci` 会先删掉整个
+`node_modules`，放里面必丢。
+
+这套 vendor 逻辑不写死包名（`scripts/workspace-vendor.ts`）：
+
+- 谁在 `dependencies` 里用 `workspace:*` / `link:` / 指向仓库内的 `file:`，谁就按本地包处理，
+  `dist/vendor/` 下的目录名取「去掉 scope」后的名字（`@repo/shared` → `shared`）；
+- 本地包再依赖本地包会递归处理；即使应用没有直接声明它，也会补进 `dist` 依赖——
+  npm 安装 `file:` 依赖时不会递归装它的依赖，而 vendor 包是顺着 `node_modules` 往上找依赖的；
+- vendor 出来的 `package.json` 按字段白名单重建：`exports` / `bin` / `files` / `engines` 等原样照抄，
+  `scripts` / `devDependencies` 丢掉（服务器上 `npm install --omit=dev` 没有 tsc，`prepare` 会直接失败），
+  `catalog:` 这类 npm 不认的协议换成构建机实际安装的版本；
+- 拷贝范围按 npm pack 的规则来（`files` 字段，默认 `dist`），所以包里带 `bin/`、模板、静态资源也能一起进产物。
+
+**新加一个仓库内包不用改 build.ts**：在应用的 `package.json` 里加一条 `"@repo/xxx": "workspace:*"`，
+`pnpm install`（生成 workspace 软链）后 `pnpm build` 即可，turbo 的 `dependsOn: ["^build"]` 会先构建它。
+唯一要保证的是那个包自己有构建产物（`dist/`），否则 build 会带着「先执行 pnpm build / pnpm --filter 构建」的提示报错。
 
 ### 4.3 运行与部署
 
@@ -210,17 +231,29 @@ npm run db:push                   # 读编译后的 db/*.js；npm start 的 pres
 终端里删列会要求确认，**服务器上没有 TTY 时它不提问、直接执行**。生产变更建议先在开发库跑一遍。
 多实例同时启动时 `db/script/push-db.ts` 会先取 Postgres advisory lock，把并发 DDL 串行化。
 
+#### 想从零开始：`pnpm db:reset`
+
+删库 → 建库 → `db:push` → 权限码种子 → 管理员种子，一条命令回到全新状态（表结构完全来自 `src/db/*.ts`）。
+
+手动删库时如果报 `database "xxx" is being accessed by other users`，**不是因为服务没停**：
+`DROP DATABASE` 只要还有任意一个别的会话连着就会被拒 —— Navicat 左侧连接树停在那个库上、
+开着的查询窗口 / 对象页签、忘了退的 psql，都各算一个会话；客户端不断开，它们就一直挂着。
+`db:recreate` 用 `DROP DATABASE ... WITH (FORCE)`（PG 13+）让库自己 `pg_terminate_backend`，
+没有「先踢再删」之间被重连插队的窗口；PG 13 以下自动退回「先 terminate 再删」。
+
 ### 4.5 命令速查
 
 | 命令（仓库根）                           | 等价                                          | 说明                                           |
 | ---------------------------------------- | --------------------------------------------- | ---------------------------------------------- |
 | `pnpm dev:services`                      | `turbo dev --filter=@repo/services`           | 开发模式，`--watch` 热重启                     |
-| `pnpm build`                             | `turbo build`                                 | 先构建 shared 再构建本包                       |
+| `pnpm build`                             | `turbo build`                                 | 先构建被依赖的仓库包再构建本包                 |
 | `pnpm --filter @repo/services typecheck` | `tsc --noEmit -p tsconfig.json`               | 只做 `src/` 类型检查                           |
 | `pnpm start`                             | `npm --prefix apps/services/dist start`       | 跑 dist 里的 `start`（带 `prestart` 同步）     |
 | `pnpm gen:module <name>`                 | `tsx scripts/gen_module.ts`                   | 生成 `<module>.route/schema/service.ts` 脚手架 |
 | `pnpm db:push`                           | `tsx src/db/script/push-db.ts`                | 改完表结构就跑它                               |
 | `pnpm db:push:dist`                      | `npm --prefix apps/services/dist run db:push` | 验证产物侧 push（需先注入 `APP_DATABASE_URL`） |
+| `pnpm db:reset`                          | `db:recreate` + `db:push` + 两个种子          | 从零重建库：删库 → 建库 → 同步结构 → 灌种子   |
+| `pnpm db:recreate`                       | `tsx src/db/script/recreate-db.ts`            | 只删库建库（`WITH (FORCE)` 踢掉残留会话）      |
 | `pnpm db:seed:admin`                     | `tsx src/db/script/admin-user.ts`             | 初始化管理员账号（首次上线手动跑）             |
 | `pnpm db:seed:permissions`               | `tsx src/db/script/permissions.ts`            | 同步权限码种子                                 |
 
@@ -232,19 +265,18 @@ npm run db:push                   # 读编译后的 db/*.js；npm start 的 pres
 
 `--env-file` 加载，不依赖 dotenv。**只有一份 `.env`**（不入库，开发/部署共用，值按环境填），模板是 `.env.example`。
 
-| 变量                                   | 默认值                         | 说明                                              |
-| -------------------------------------- | ------------------------------ | ------------------------------------------------- |
-| `PORT` / `HOST`                        | `3000` / `0.0.0.0`             | 监听地址                                          |
-| `TRUST_PROXY`                          | `false`                        | 在 Nginx 等反代后面时设 `true`，否则拿不到真实 IP |
-| `BODY_LIMIT`                           | `1048576`                      | 请求体上限（字节）                                |
-| `LOG_DIR` / `LOG_LEVEL`                | `logs` / `info`                | 日志目录与级别                                    |
-| `API_DOCS_ENABLED`                     | `true`                         | 是否开放 `/docs`                                  |
-| `APP_DATABASE_URL`                     | 必填                           | PostgreSQL 连接串                                 |
-| `REDIS_URL` / `REDIS_PREFIX`           | 必填 / `PREFIX:`               | Redis 连接串与 key 前缀                           |
-| `ADMIN_JWT_SECRET` / `USER_JWT_SECRET` | 必填                           | 两套 JWT 密钥                                     |
-| `JWT_ISSUER_ADMIN` / `JWT_ISSUER_USER` | `admin-system` / `user-system` | JWT issuer                                        |
-| `ACCESS_TOKEN_TTL`                     | `7d`                           | token 过期时间                                    |
-| `UPLOAD_MAX_FILE_SIZE`                 | `10485760`                     | 上传大小上限（字节）                              |
+| 变量                                   | 默认值             | 说明                                              |
+| -------------------------------------- | ------------------ | ------------------------------------------------- |
+| `PORT` / `HOST`                        | `3000` / `0.0.0.0` | 监听地址                                          |
+| `TRUST_PROXY`                          | `false`            | 在 Nginx 等反代后面时设 `true`，否则拿不到真实 IP |
+| `BODY_LIMIT`                           | `1048576`          | 请求体上限（字节）                                |
+| `LOG_DIR` / `LOG_LEVEL`                | `logs` / `info`    | 日志目录与级别                                    |
+| `API_DOCS_ENABLED`                     | `true`             | 是否开放 `/docs`                                  |
+| `APP_DATABASE_URL`                     | 必填               | PostgreSQL 连接串                                 |
+| `REDIS_URL` / `REDIS_PREFIX`           | 必填 / `PREFIX:`   | Redis 连接串与 key 前缀                           |
+| `ADMIN_JWT_SECRET` / `USER_JWT_SECRET` | 必填               | 两套 JWT 密钥                                     |
+| `ACCESS_TOKEN_TTL`                     | `7d`               | token 过期时间                                    |
+| `UPLOAD_MAX_FILE_SIZE`                 | `10485760`         | 上传大小上限（字节）                              |
 
 两个高频坑：
 
@@ -270,6 +302,8 @@ config: { auth: "public" } satisfies RouteAuthConfig
 ```
 
 - **未声明 `config.auth`（或整个 `config`）等同公开**——需要鉴权的接口必须显式声明。
+- issuer 写死在各自的插件里（`jwt-admin.ts` → `admin-system`，`jwt-user.ts` → `user-system`），不开放环境变量配置；
+  两个 issuer 不同，所以 admin 签发的 token 拿不到 user 接口上，反之亦然。
 - `permission` 只存在于 `auth: "admin"` 分支（`RouteAuthConfig` 是判别联合）；
   `auth: "user"` / `"public"` 带 `permission` 会在编译期报错。
 - `src/permissions/` 的常量只服务本包：① 路由声明期的编译期 typo 检查；② `db:seed:permissions` 同步 `code` 表。
@@ -279,11 +313,64 @@ config: { auth: "public" } satisfies RouteAuthConfig
 
 ## 七、日志
 
-- 访问日志：`logs/router/YYYY-MM-DD.log`；应用日志：`logs/log/YYYY-MM-DD.log`。
-- 只记请求（method / url / ip / body / query / params / headers），响应侧不落盘，避免响应体里的 token 进磁盘；
-  `/docs`、`/api/health` 前缀不记。
-- 脱敏：`authorization`、`cookie`、`set-cookie`、`password`、`newPassword`、`token`。
-- 收到 `SIGINT` / `SIGTERM` 会先 `app.close()`、flush 日志再退出（最多等 2s）。
+日志由 `@repo/logger`（`packages/logger`）负责，**pino 已移除**。设计文档见 `packages/logger/DESIGN.md`
+（第 19 节是最终实现），这里只讲运维视角。
+
+### 7.1 文件布局
+
+```
+<包根>/logs/
+├── router/2026-10-23.log     # 请求日志（method/url/ip/headers/query/params/body/files）
+└── log/2026-10-23.log        # 应用日志（error-handler / 业务 fastify.log）
+```
+
+设置了 `LOG_SERVICE` 时多一层：`logs/<service>/router|log/…`（多服务共用一个 `LOG_DIR` 时用）。
+
+- 一行一条 JSON，字段顺序 `level` / `time` / `ts` / `service?` / `pid` / … / `msg`
+- 跨天**自动切换**（每条按自己的 `ts` 决定落哪个文件），服务长期运行不用重启
+- 单文件超 `LOG_MAX_FILE_MB`（默认 10MB）切 `2026-10-23.1.log`
+- 超 `LOG_RETENTION_DAYS`（默认 30 日历日）的文件由子进程每小时清理一次，启动也清一次
+
+### 7.2 记什么 / 不记什么
+
+| 内容                                           | 记不记                                                                     |
+| ---------------------------------------------- | -------------------------------------------------------------------------- |
+| method / url / ip / requestId / query / params | ✅                                                                         |
+| 请求头（全量，含 `authorization` / `cookie`）  | ✅ 进管道后由**子进程**脱敏成 `[Redacted]`                                 |
+| JSON body 的字段                               | ✅（单字段 >16KB 或整个 body >2000 节点时记摘要）                          |
+| multipart 的文本字段                           | ✅ 放 `body`                                                               |
+| 上传文件的**元信息**                           | ✅ 放 `files`：`fieldname / filename / mimetype / encoding / bytes`        |
+| 上传文件的**内容**                             | ❌ 流式丢弃，不进内存、不进日志                                            |
+| 报错信息                                       | ✅（`err` 展开 name/message/stack/code；解析失败的请求额外带 `bodyError`） |
+
+### 7.3 子进程
+
+- 默认 `LOG_MODE=child`：主服务 spawn 一个子进程专门写盘，随主服务启动/关闭
+- 子进程异常退出会退避重启（200ms→5s 封顶），**不降级**；期间日志进有界队列，溢出即丢（`dropped` 计数）
+- 磁盘满：子进程不退出、不堵管道，只丢数据并在 stderr 报 `ENOSPC`
+- 主进程被强杀：子进程靠 stdin EOF 自己退出，不留孤儿
+
+### 7.4 查看
+
+```bash
+# 打包产物/依赖装好后，白得一个命令（bin: repo-log）
+npx repo-log tail --dir logs --type router --follow
+npx repo-log tail --dir logs --type log --lines 100 --level warn --grep 登录
+npx repo-log cat --dir logs --type router --date 2026-10-23 --limit 200
+npx repo-log ls --dir logs
+```
+
+也可以直接用 `Get-Content -Wait` / `tail -f` 读文件，格式就是 NDJSON。
+
+### 7.5 配置
+
+`LOG_*` 由 `@repo/logger` 解析，**不在 `core/env.ts` 的 zod schema 里**（非法值回落默认）：
+`LOG_SERVICE`、`LOG_DIR`、`LOG_LEVEL`、`LOG_MODE`（child/off）、`LOG_RETENTION_DAYS`、`LOG_MAX_FILE_MB`、
+`LOG_BODY_MAX_BYTES`、`LOG_BODY_MAX_NODES`、`LOG_REDACT_PATHS`、`LOG_REDACT_CENSOR`、
+`LOG_SINK_MAX_BUFFER_MB`、`LOG_STDOUT`。完整清单见 `packages/logger/DESIGN.md` §19.4。
+
+> ⚠️ `.env` 里**不要用 `//` 注释**：Node 的 `--env-file` 只认 `#`，`REDIS_URL=redis://… // 说明`
+> 会把注释一起当成值，ioredis 会抛 `Invalid URL`。
 
 ---
 

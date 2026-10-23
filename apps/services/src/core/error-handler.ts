@@ -1,4 +1,5 @@
 import { AppError } from "@/core/app-error";
+import { writeRequestLog } from "@/core/request-log";
 import { BusinessCode } from "@repo/shared";
 import type { ZodFastifySchemaValidationError } from "fastify-type-provider-zod";
 import { hasZodFastifySchemaValidationErrors, isResponseSerializationError } from "fastify-type-provider-zod";
@@ -23,12 +24,14 @@ const DEFAULT_SERVER_ERROR_MESSAGE = "服务器内部错误";
 
 export function registerErrorHandler(app: FastifyInstance) {
   app.setNotFoundHandler((request, reply) => {
-    // 响应侧已不再统一记日志，这里补一条，否则 404 在日志里只剩「请求进来过」
+    writeRequestLog(request);
     request.log.warn({ method: request.method, url: request.url }, "接口不存在");
     return reply.error(`接口不存在: ${request.method} ${request.url}`, BusinessCode.NOT_FOUND);
   });
 
   app.setErrorHandler((error, request, reply) => {
+    writeRequestLog(request, { bodyError: readErrorCode(error) });
+
     if (hasZodFastifySchemaValidationErrors(error)) {
       const message = formatValidationErrorMessage(error.validation);
       request.log.warn({ method: request.method, url: request.url, message }, "请求参数校验失败");
@@ -41,8 +44,6 @@ export function registerErrorHandler(app: FastifyInstance) {
     }
 
     if (error instanceof AppError) {
-      // 响应侧日志移除后，这里是 4xx 唯一的记录点（鉴权失败、资源不存在、状态冲突都抛 AppError）。
-      // 4xx 属于「请求被拒」而不是「服务出错」，和下面框架层错误统一用 warn。
       if (error.code >= 500) request.log.error({ err: error }, "业务处理异常");
       else
         request.log.warn(
@@ -52,8 +53,6 @@ export function registerErrorHandler(app: FastifyInstance) {
       return reply.error(error.message, error.code);
     }
 
-    // 框架层错误（body 超限 413、Content-Type 不支持 415、JSON 不合法 400 等）
-    // 必须保留原始 HTTP 语义，不能一律兜成 500
     const statusCode = readHttpStatusCode(error);
     const businessCode = STATUS_CODE_BUSINESS_CODE[statusCode];
 
@@ -70,6 +69,15 @@ export function registerErrorHandler(app: FastifyInstance) {
     request.log.warn({ err: error, statusCode }, "请求被拒绝");
     return reply.error(readErrorMessage(error, "请求处理失败"), businessCode);
   });
+}
+
+/** 请求日志兜底用的错误标识：优先取框架错误码（如 FST_REQ_FILE_TOO_LARGE） */
+function readErrorCode(error: unknown): string {
+  if (typeof error === "object" && error !== null) {
+    const code = (error as { code?: unknown }).code;
+    if (typeof code === "string") return code;
+  }
+  return error instanceof Error ? error.message : "unknown";
 }
 
 function readHttpStatusCode(error: unknown) {

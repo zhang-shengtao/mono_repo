@@ -5,7 +5,7 @@ import { createJwtGuard } from "@/core/jwt-guard";
 const adminJwtPlugin = createJwtGuard({
   realm: "admin",
   secret: env.ADMIN_JWT_SECRET,
-  issuer: env.JWT_ISSUER_ADMIN,
+  issuer: "admin-system",
   expiresIn: env.ACCESS_TOKEN_TTL,
 });
 

@@ -28,7 +28,6 @@ const rows: Array<typeof code.$inferInsert> = PERMISSION_SEEDS.map((item) => ({
   description: item.description,
 }));
 
-// 权限码是纯数据：已存在时同步名称/分组/描述，避免改了种子数据却对不上库
 await db
   .insert(code)
   .values(rows)

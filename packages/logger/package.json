@@ -1,0 +1,40 @@
+{
+  "name": "@repo/logger",
+  "version": "0.1.0",
+  "description": "零依赖结构化日志：子进程写盘 / 按天切分 / 30 天保留 / 实时查看",
+  "private": true,
+  "type": "module",
+  "engines": {
+    "node": ">=20.0.0"
+  },
+  "sideEffects": false,
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    },
+    "./viewer": {
+      "types": "./dist/viewer.d.ts",
+      "default": "./dist/viewer.js"
+    },
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "dist",
+    "README.md",
+    "DESIGN.md"
+  ],
+  "bin": {
+    "repo-log": "./dist/cli.js"
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "test": "tsc -p tsconfig.json && node --test \"test/**/*.test.mjs\"",
+    "prepack": "tsc -p tsconfig.json"
+  },
+  "devDependencies": {
+    "@types/node": "^25.9.2",
+    "typescript": "catalog:"
+  }
+}

@@ -23,7 +23,7 @@ export const exampleLoginRouteOptions = {
     },
   },
   config: {
-    auth: "public", // 禁用全局的认证 验证token
+    auth: "public",
   } satisfies RouteAuthConfig,
 };
 
@@ -37,7 +37,7 @@ export const exampleChatRouteOptions = {
     }),
   },
   config: {
-    auth: "public", // 禁用全局的认证 验证token
+    auth: "public",
   } satisfies RouteAuthConfig,
 };
 
@@ -56,7 +56,7 @@ export const exampleWsRouteOptions = {
     },
   },
   config: {
-    auth: "public", // 禁用全局的认证 验证token
+    auth: "public",
   } satisfies RouteAuthConfig,
 };
 

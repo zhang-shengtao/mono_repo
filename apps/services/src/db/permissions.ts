@@ -3,7 +3,6 @@ import { boolean, integer, pgTable, primaryKey, timestamp } from "drizzle-orm/pg
 import { adminUser } from "./admin-user";
 import { adminMenus } from "./admin-menus";
 
-// 所有用户关联权限表
 export const permissions = pgTable(
   "permissions",
   {
@@ -13,16 +12,15 @@ export const permissions = pgTable(
     admin_menus_id: integer("admin_menus_id")
       .references(() => adminMenus.admin_menus_id)
       .notNull(),
-    is_transmit: boolean("is_transmit").default(false).notNull(), // 是否可以给子级账户使用这个权限 false:不支持 true:支持
-    is_disabled: boolean("is_disabled").default(false).notNull(), // 是否禁用 false:未禁用 true:禁用
+    is_transmit: boolean("is_transmit").default(false).notNull(),
+    is_disabled: boolean("is_disabled").default(false).notNull(),
     updated_by: integer("updated_by")
       .references(() => adminUser.user_id)
-      .notNull(), // 修改人
+      .notNull(),
     created_by: integer("created_by")
       .references(() => adminUser.user_id)
-      .notNull(), // 创建人
-    created_at: timestamp("created_at", { mode: "string" }).defaultNow().notNull(), // 创建时间
-    // 更新时间：UPDATE 时由数据库 now() 自动写入，业务代码不需要再手写
+      .notNull(),
+    created_at: timestamp("created_at", { mode: "string" }).defaultNow().notNull(),
     updated_at: timestamp("updated_at", { mode: "string" })
       .defaultNow()
       .notNull()

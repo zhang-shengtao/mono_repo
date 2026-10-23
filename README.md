@@ -1,4 +1,4 @@
-﻿# Monorepo
+# Monorepo
 
 pnpm workspace 管理的前后端一体仓库：一个 `apps/services`（Fastify 服务）+ `packages/shared`（前后端共用契约），`apps/admin`（管理后台 UI）已预留位置。
 
@@ -56,6 +56,7 @@ pnpm dev                     # turbo 先构建依赖包，再并行起 shared --
 | `pnpm gen:module <name>`                | —                                   | 生成业务模块脚手架                                                       |
 | `pnpm db:push`                          | —                                   | **改完表结构就跑它**：`drizzle-kit push`，schema 与库 diff 后执行 DDL    |
 | `pnpm db:push:dist`                     | —                                   | 跑 `dist/` 里的同款 `db:push`（验证产物侧，需先注入 `APP_DATABASE_URL`） |
+| `pnpm db:reset`                         | —                                   | **从零重建库**：删库 → 建库 → `db:push` → 权限码 + 管理员种子            |
 | `pnpm db:seed:admin`                    | —                                   | 初始化管理员账号                                                         |
 | `pnpm db:seed:permissions`              | —                                   | 同步权限码种子                                                           |
 | `pnpm prepare:hooks`                    | —                                   | 启用 `.githooks/pre-commit`                                              |
@@ -71,6 +72,17 @@ pnpm dev                     # turbo 先构建依赖包，再并行起 shared --
 > （schema ↔ 活库 diff，然后直接执行 DDL），差别只有 schema 从哪儿读：仓库读 `src/db/*.ts`，
 > 产物读编译后的 `db/*.js`（`dist/drizzle.config.mjs` 由 build 生成）。
 > 仓库里**不生成、不提交任何 SQL 迁移文件**；drizzle-kit 因此写在 `dependencies` 里、会一起进 dist。
+>
+> **想从零开始（清库重来）：`pnpm db:reset`。** 它先删库建库，再跑 `db:push` + 两个种子 ——
+> 表结构完全来自 `src/db/*.ts`，不需要任何迁移历史。
+> 手动删库时如果报 `database "xxx" is being accessed by other users`，那不是服务没停：
+> 只要还有**任意一个**会话连着（Navicat 的左侧连接树、开着的查询窗口/对象页签都各算一个），
+> PostgreSQL 就会拒绝 `DROP DATABASE`。`db:reset` 用 `DROP DATABASE ... WITH (FORCE)` 让库自己踢掉这些会话；
+> 非要在 Navicat 里手搓的话，连接切到 `postgres` 库后执行
+> `SELECT pg_terminate_backend(pid) FROM pg_stat_activity WHERE datname = 'your_db' AND pid <> pg_backend_pid();`
+> 再 `DROP DATABASE`。
+> 另外 `pnpm dev:services` 启动时已经带 `db:push` + `db:seed:permissions`，
+> 只有管理员种子（`db:seed:admin`）需要单独跑，或者直接用 `db:reset`。
 
 ### Turborepo 缓存
 

@@ -27,8 +27,6 @@ export default class ExampleService {
   }
 
   async chat(name: string, reply: FastifyReply) {
-    // reply.raw.destroyed = true 客户端断开连接
-    // reply.raw.writableEnded = true 服务端这一侧已经调用过 reply.raw.end()
     let isOpen = true;
     reply.raw.socket?.on("close", () => {
       console.log("close=>", "断开了");
@@ -44,9 +42,7 @@ export default class ExampleService {
       }),
     );
     for (let i = 0; i <= 10; i++) {
-      // if (reply.raw.destroyed) break;
       await new Promise((resolve) => setTimeout(resolve, 1000));
-      // if (reply.raw.destroyed) break;
       if (!isOpen) break;
       console.log("writableEnded=>" + i, reply.raw.destroyed, reply.raw.writableEnded, Date.now());
       await reply.raw.write(

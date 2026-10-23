@@ -7,8 +7,6 @@ const menuBodySchema = z.object({
   type: z.enum(["directory", "page", "button"]).describe("菜单类型: directory目录，page页面，button按钮"),
   parent_id: z.number().int().min(0).default(0).describe("父级菜单ID，顶级菜单为0"),
   meta: z.record(z.string(), z.unknown()).default({}).describe("菜单元数据，JSON对象，服务端仅存储"),
-  // 权限码以 code 表为准，这里只做形状校验（长度/非空）；
-  // 「存在、未禁用、未被其他菜单绑定」由 menu.service 查库判断，不要在 schema 里用 z.enum 固化全集。
   permission: z
     .string()
     .trim()

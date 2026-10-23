@@ -198,9 +198,7 @@ export default class UserService {
     try {
       const user = JSON.parse(cached) as CachedAuthUser;
       if (Number.isInteger(user.user_id)) await this.fastify.redis.srem(this.sessionSetKey(user.user_id), uid);
-    } catch {
-      // 登录缓存损坏时，删除会话本身即可。
-    }
+    } catch {}
   }
 
   async login(username: string, password: string) {

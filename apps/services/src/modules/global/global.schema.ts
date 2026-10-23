@@ -19,7 +19,7 @@ export const healthRouteOptions = {
     },
   },
   config: {
-    auth: "public", // 禁用全量的认证 验证token
+    auth: "public",
   } satisfies RouteAuthConfig,
 };
 
@@ -39,6 +39,6 @@ export const captchaRouteOptions = {
     },
   },
   config: {
-    auth: "public", // 禁用全局的认证 验证token
+    auth: "public",
   } satisfies RouteAuthConfig,
 };
