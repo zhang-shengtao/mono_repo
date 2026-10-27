@@ -1,7 +1,8 @@
 import { z } from "zod/v4";
 
 /**
- * 统一响应包络。api 用它生成 OpenAPI 响应 schema，admin 端用它校验/推导响应类型，
+ * 统一响应包络。
+ * api 用它生成 OpenAPI 响应 schema，admin 端用它校验/推导响应类型，
  * 两边共用一份定义，避免「后端加了字段、前端还在报缺字段」。
  */
 export function responseSchema<T extends z.ZodType>(data: T) {
@@ -11,6 +12,17 @@ export function responseSchema<T extends z.ZodType>(data: T) {
     data: z.union([data, z.null()]),
     request_id: z.string().describe("请求 ID"),
   });
+}
+
+/**
+ * 包络的 TS 形状（与上面的 zod schema 字段一一对应）。
+ * 前端请求层直接用它约束返回值，不用在自己项目里手抄一份。
+ */
+export interface ApiResponse<T> {
+  code: number;
+  message: string;
+  data: T | null;
+  request_id: string;
 }
 
 export const errorResponseSchema = z.object({

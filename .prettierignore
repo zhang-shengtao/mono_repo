@@ -1,7 +1,11 @@
-﻿node_modules
+node_modules
 dist
 logs
 tmp
 coverage
 pnpm-lock.yaml
 fastify-core-plugins-cn.md
+
+# unplugin-auto-import / unplugin-vue-components 自动生成，不要手动格式化
+apps/admin/auto-imports.d.ts
+apps/admin/components.d.ts

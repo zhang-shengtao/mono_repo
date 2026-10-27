@@ -54,27 +54,26 @@ apps/services/
 │   ├── app.ts                    # 应用装配：logger / bodyLimit / trustProxy / 校验器 / autoload 插件和路由
 │   ├── core/                     # 与业务无关的基础设施
 │   │   ├── env.ts                #   环境变量 schema（zod），缺失或非法时在启动阶段给出可读原因
-│   │   ├── app-error.ts          #   AppError / describeError（错误归一）
-│   │   ├── error-handler.ts      #   统一错误响应，保留 HTTP 语义
+│   │   ├── app_error.ts          #   AppError / describeError（错误归一）
+│   │   ├── error_handler.ts      #   统一错误响应，保留 HTTP 语义
 │   │   ├── response.ts           #   reply.success / reply.error / x-request-id
-│   │   ├── jwt-guard.ts          #   JWT 鉴权 + 权限校验的 preHandler 工厂
-│   │   └── access-log-transport.mjs  # 自定义 pino transport，按天切分文件（.mjs 由 build 手工拷进 dist）
+│   │   ├── request_log.ts        #   访问日志的字段整理与脱敏
+│   │   └── paths.ts              #   包根定位（server.ts 据此决定日志目录）
 │   ├── db/                       # 数据层
-│   │   ├── admin-user.ts         #   表 admin_user
-│   │   ├── admin-menus.ts        #   表 admin_menus
+│   │   ├── admin_user.ts         #   表 admin_user
+│   │   ├── admin_menus.ts        #   表 admin_menus
 │   │   ├── permissions.ts        #   表 permissions
 │   │   ├── code.ts               #   表 code（权限码 / 字典）
 │   │   └── script/               #   一次性脚本（不会被当成 schema，能编进 dist）
 │   │       ├── push-db.ts        #     db:push：drizzle-kit push，schema ↔ 活库 diff 后执行 DDL
-│   │       ├── recreate-db.ts    #     db:reset 第一步：DROP ... WITH (FORCE) 后重建空库
 │   │       ├── admin-user.ts     #     db:seed:admin：初始化管理员账号（会重置密码，只手动跑）
 │   │       └── permissions.ts    #     db:seed:permissions：把权限码种子同步进 code 表
 │   ├── modules/<module>/         # 业务模块，一个模块三个文件
 │   │   ├── <module>.route.ts     #   路由声明：路径 + 鉴权 + zod schema + 调用 service
 │   │   ├── <module>.schema.ts    #   请求/响应 schema 与路由配置（自动生成 OpenAPI）
 │   │   └── <module>.service.ts   #   业务逻辑与 SQL
-│   ├── plugins/                  # Fastify 插件，按文件名注册：jwt-admin / jwt-user / logger /
-│   │                             #   multipart / postgres / redis / swagger / websocket
+│   ├── plugins/                  # Fastify 插件，按文件名注册：jwt / logger / multipart /
+│   │                             #   postgres / redis / swagger / websocket
 │   ├── permissions/              # 权限码常量与种子数据（index.ts 汇总，menu.ts / user.ts 分域）
 │   ├── types/                    # auth.ts（RouteAuthConfig 判别联合）、fastify.d.ts（实例类型增强）
 │   └── utils/                    # 分页器、密码哈希、日志时间格式化等
@@ -231,15 +230,17 @@ npm run db:push                   # 读编译后的 db/*.js；npm start 的 pres
 终端里删列会要求确认，**服务器上没有 TTY 时它不提问、直接执行**。生产变更建议先在开发库跑一遍。
 多实例同时启动时 `db/script/push-db.ts` 会先取 Postgres advisory lock，把并发 DDL 串行化。
 
-#### 想从零开始：`pnpm db:reset`
+#### 想从零开始：手动删库
 
-删库 → 建库 → `db:push` → 权限码种子 → 管理员种子，一条命令回到全新状态（表结构完全来自 `src/db/*.ts`）。
+仓库不提供「一条命令清库」的入口：要回到全新状态就手动删库，再用 `pnpm db:push` 重建结构、跑两个种子
+（表结构完全来自 `src/db/*.ts`）。
 
 手动删库时如果报 `database "xxx" is being accessed by other users`，**不是因为服务没停**：
 `DROP DATABASE` 只要还有任意一个别的会话连着就会被拒 —— Navicat 左侧连接树停在那个库上、
 开着的查询窗口 / 对象页签、忘了退的 psql，都各算一个会话；客户端不断开，它们就一直挂着。
-`db:recreate` 用 `DROP DATABASE ... WITH (FORCE)`（PG 13+）让库自己 `pg_terminate_backend`，
-没有「先踢再删」之间被重连插队的窗口；PG 13 以下自动退回「先 terminate 再删」。
+PG 13+ 直接 `DROP DATABASE xxx WITH (FORCE);` 让库自己 `pg_terminate_backend`；
+13 以下先 `SELECT pg_terminate_backend(pid) FROM pg_stat_activity WHERE datname = 'xxx' AND pid <> pg_backend_pid();`
+再删 —— 这条路有极小的重连窗口，失败重跑即可。
 
 ### 4.5 命令速查
 
@@ -252,8 +253,6 @@ npm run db:push                   # 读编译后的 db/*.js；npm start 的 pres
 | `pnpm gen:module <name>`                 | `tsx scripts/gen_module.ts`                   | 生成 `<module>.route/schema/service.ts` 脚手架 |
 | `pnpm db:push`                           | `tsx src/db/script/push-db.ts`                | 改完表结构就跑它                               |
 | `pnpm db:push:dist`                      | `npm --prefix apps/services/dist run db:push` | 验证产物侧 push（需先注入 `APP_DATABASE_URL`） |
-| `pnpm db:reset`                          | `db:recreate` + `db:push` + 两个种子          | 从零重建库：删库 → 建库 → 同步结构 → 灌种子   |
-| `pnpm db:recreate`                       | `tsx src/db/script/recreate-db.ts`            | 只删库建库（`WITH (FORCE)` 踢掉残留会话）      |
 | `pnpm db:seed:admin`                     | `tsx src/db/script/admin-user.ts`             | 初始化管理员账号（首次上线手动跑）             |
 | `pnpm db:seed:permissions`               | `tsx src/db/script/permissions.ts`            | 同步权限码种子                                 |
 
@@ -288,22 +287,30 @@ npm run db:push                   # 读编译后的 db/*.js；npm start 的 pres
 
 ## 六、认证与权限
 
-两套独立 JWT 校验器，由路由的 `config.auth` 决定谁接管，**与 URL 前缀无关**：
+两套独立 JWT 由**同一个插件** `plugins/jwt.ts` 管理：注册时按 `REALMS` 表把两套密钥和 issuer 各注册成一个
+`@fastify/jwt` 命名空间（`fastify.jwt.admin` / `fastify.jwt.user`），请求时只跑一个 `preHandler`，
+按路由声明的 `config.auth` 选命名空间，**与 URL 前缀无关**：
 
 ```ts
-// 管理端：admin 校验器（额外校验管理员状态 + permission）
+// 管理端：admin 命名空间（额外校验管理员状态 + permission）
 config: { auth: "admin", permission: PERMISSIONS.SYSTEM_USER_GET } satisfies RouteAuthConfig
 
-// 用户端：user 校验器
+// 用户端：user 命名空间
 config: { auth: "user" } satisfies RouteAuthConfig
 
-// 公开接口：两套校验器都跳过
+// 公开接口：钩子直接放行
 config: { auth: "public" } satisfies RouteAuthConfig
 ```
 
 - **未声明 `config.auth`（或整个 `config`）等同公开**——需要鉴权的接口必须显式声明。
-- issuer 写死在各自的插件里（`jwt-admin.ts` → `admin-system`，`jwt-user.ts` → `user-system`），不开放环境变量配置；
+- 新增一套身份只改两处：`plugins/jwt.ts` 的 `REALMS` 表（一行）和 `types/auth.ts` 的 `JwtRealm`，
+  注册、类型、启动期校验一起生效。
+- issuer 写死在 `REALMS` 表里（`admin` → `admin-system`，`user` → `user-system`），不开放环境变量配置；
   两个 issuer 不同，所以 admin 签发的 token 拿不到 user 接口上，反之亦然。
+- `config.auth` 在**启动阶段**校验（`onRoute` 钩子）：取值拼错、或把 `permission` 配在非 `admin` 路由上，
+  服务直接启动失败，不会等请求进来才暴露。
+- 校验顺序：验签（签名 / issuer / 有效期）→ Redis 会话 → 快照里的账号状态 →（仅 admin）回查库中状态
+  →（仅 admin 且声明了 `permission`）权限联查。
 - `permission` 只存在于 `auth: "admin"` 分支（`RouteAuthConfig` 是判别联合）；
   `auth: "user"` / `"public"` 带 `permission` 会在编译期报错。
 - `src/permissions/` 的常量只服务本包：① 路由声明期的编译期 typo 检查；② `db:seed:permissions` 同步 `code` 表。

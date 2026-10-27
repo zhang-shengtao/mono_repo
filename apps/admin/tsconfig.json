@@ -9,10 +9,11 @@
     "jsx": "preserve",
     "noEmit": true,
     "isolatedModules": true,
+    "allowImportingTsExtensions": true,
     "allowJs": false,
     "paths": {
       "@/*": ["./src/*"]
     }
   },
-  "include": ["src/**/*.ts", "src/**/*.d.ts", "src/**/*.vue", "vite.config.ts"]
+  "include": ["src/**/*.ts", "src/**/*.vue", "plugin/**/*.ts", "vite.config.ts", "./*.d.ts"]
 }

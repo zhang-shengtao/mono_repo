@@ -1,8 +1,7 @@
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { describeError } from "@/core/app-error";
+import { describeError } from "@/core/app_error";
 import { findPackageRoot } from "@/core/paths";
-
 
 async function main() {
   try {
@@ -28,10 +27,7 @@ async function main() {
         port: env.PORT,
       });
       logger.info(`服务已启动：http://localhost:${env.PORT}`);
-      console.log(
-        `[server] 已启动 http://localhost:${env.PORT}` +
-          `（日志：${config.logDir}，模式：${config.mode}，保留：${config.retentionDays} 天，单文件：${config.maxFileMb}MB）`,
-      );
+      console.log(`[server] 已启动 http://localhost:${env.PORT}` + `（日志：${config.logDir}，模式：${config.mode}，保留：${config.retentionDays} 天，单文件：${config.maxFileMb}MB）`);
     } catch (error) {
       logger.error({ err: error }, "服务启动失败");
       await stop(1);

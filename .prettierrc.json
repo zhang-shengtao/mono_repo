@@ -1,8 +1,14 @@
 {
-  "semi": true,
+  "printWidth": 200,
+  "tabWidth": 2,
+  "bracketSpacing": true,
+  "arrowParens": "always",
+  "endOfLine": "auto",
   "singleQuote": false,
   "trailingComma": "all",
-  "printWidth": 120,
-  "tabWidth": 2,
-  "endOfLine": "lf"
+  "semi": true,
+  "useTabs": false,
+  "jsxSingleQuote": false,
+  "proseWrap": "preserve",
+  "vueIndentScriptAndStyle": true
 }

@@ -1,13 +1,5 @@
-/**
- * 管理员种子：创建/重置初始管理员账号。
- *
- * 与 permissions.ts 同理，放在 src/ 才能编进 dist，生产环境用
- * `node dist/db/script/admin-user.js` 执行，不依赖 tsx 和源码。
- *
- * 幂等：按 account 做 upsert，重复执行只会把密码重置成 ADMIN_SEED_PASSWORD。
- */
 import { drizzle } from "drizzle-orm/node-postgres";
-import { adminUser } from "@/db/admin-user";
+import { adminUser } from "@/db/admin_user";
 import { hashPassword } from "@/utils/password";
 
 const databaseUrl = process.env.APP_DATABASE_URL;

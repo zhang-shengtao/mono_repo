@@ -7,10 +7,14 @@ packages:
 # 是数组，在 v12 已不生效，写成数组会直接解析失败）。
 # tsx / drizzle-kit 依赖的 esbuild 需要放行，否则安装会以 ERR_PNPM_IGNORED_BUILDS 失败。
 allowBuilds:
+  # sass 的可选依赖，install 脚本只在显式要求从源码编译时才动（npm_config_build_from_source=true），
+  # 平时是空操作；win32 预编译包 @parcel/watcher-win32-x64 随 optionalDependencies 一起装。
+  "@parcel/watcher": true
   esbuild: true
 
 # 版本单一定义处：多个包依赖同一个包时，版本写在这里，包的 package.json 用 "catalog:" 引用。
 # 声明仍在各自包内（各自的 node_modules/.bin 齐全），但版本只有一个来源，不会将来漂成两份。
 catalog:
+  pinia: ^4.1.0
   typescript: ^6.0.3
   zod: ^4.4.3

@@ -6,7 +6,7 @@ import type { RepoLogger } from "@repo/logger";
 import Fastify, { LogController, type FastifyBaseLogger } from "fastify";
 import { serializerCompiler, validatorCompiler, type ZodTypeProvider } from "fastify-type-provider-zod";
 import { env } from "@/core/env";
-import { registerErrorHandler } from "@/core/error-handler";
+import { registerErrorHandler } from "@/core/error_handler";
 import { registerResponse } from "@/core/response";
 
 const currentFilePath = fileURLToPath(import.meta.url);

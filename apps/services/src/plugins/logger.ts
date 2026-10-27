@@ -1,6 +1,5 @@
 import fp from "fastify-plugin";
-import { cacheRequestMeta, shouldSkipRequest, writeRequestLog } from "@/core/request-log";
-
+import { cacheRequestMeta, shouldSkipRequest, writeRequestLog } from "@/core/request_log";
 
 async function requestLogPlugin(fastify: FastifyInstance) {
   fastify.addHook("onRequest", (request, _reply, done) => {

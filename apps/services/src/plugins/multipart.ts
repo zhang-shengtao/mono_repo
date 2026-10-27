@@ -1,7 +1,7 @@
 import fp from "fastify-plugin";
 import fastifyMultipart from "@fastify/multipart";
 import { env } from "@/core/env";
-import { addFileMeta } from "@/core/request-log";
+import { addFileMeta } from "@/core/request_log";
 
 async function multipartPlugin(fastify: FastifyInstance) {
   await fastify.register(fastifyMultipart, {

@@ -1,19 +1,19 @@
 import { sql } from "drizzle-orm";
 import { boolean, integer, pgTable, primaryKey, timestamp } from "drizzle-orm/pg-core";
-import { adminUser } from "./admin-user";
-import { adminMenus } from "./admin-menus";
+import { adminUser } from "./admin_user";
+import { adminMenus } from "./admin_menus";
 
 export const permissions = pgTable(
   "permissions",
   {
     user_id: integer("user_id")
       .references(() => adminUser.user_id)
-      .notNull(),
-    admin_menus_id: integer("admin_menus_id")
-      .references(() => adminMenus.admin_menus_id)
-      .notNull(),
-    is_transmit: boolean("is_transmit").default(false).notNull(),
-    is_disabled: boolean("is_disabled").default(false).notNull(),
+      .notNull(), // 用户表主键ID
+    menus_id: integer("menus_id")
+      .references(() => adminMenus.menus_id)
+      .notNull(), // 菜单表主键ID
+    is_transmit: boolean("is_transmit").default(false).notNull(), // 是否可以给下级使用
+    is_disabled: boolean("is_disabled").default(false).notNull(), // 是否禁用
     updated_by: integer("updated_by")
       .references(() => adminUser.user_id)
       .notNull(),
@@ -26,7 +26,7 @@ export const permissions = pgTable(
       .notNull()
       .$onUpdate(() => sql`now()`),
   },
-  (table) => [primaryKey({ columns: [table.user_id, table.admin_menus_id] })],
+  (table) => [primaryKey({ columns: [table.user_id, table.menus_id] })],
 );
 
 export type Permissions = typeof permissions.$inferSelect;

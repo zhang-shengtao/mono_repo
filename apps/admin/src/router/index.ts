@@ -1,33 +1,43 @@
-import { createRouter, createWebHistory } from "vue-router";
-import { onUnauthorized } from "@/api/http";
-import { useAuthStore } from "@/stores/auth";
-import { setupGuard } from "./guard";
-import { resetMenuRoutes } from "./menu-routes";
-import { staticRoutes } from "./routes";
+// 这个文件是路由的入口文件 负责创建路由实例 并导出所有的路由模块
 
-const router = createRouter({
-  history: createWebHistory(),
-  routes: staticRoutes,
-  scrollBehavior: () => ({ top: 0 }),
+export * from "vue-router";
+import { createRouter, createWebHistory, type RouteRecordRaw } from "vue-router";
+
+import system from "./modules/system";
+
+const keepAlive = true; // 是否缓存当前页面
+const hidden = true; // 是否隐藏当前目录
+const isScreen = true; // 是否占满mainApp的内容
+const target = true; // 显示在侧边目录点击是否打开一个新的标签页
+
+const routes: RouteRecordRaw[] = [
+  {
+    path: "/login",
+    meta: { title: "登录", keepAlive, hidden, isScreen, target },
+    name: "login",
+    component: () => import("@/view/auth/login.vue"),
+  },
+  {
+    path: "/404",
+    alias: "/:pathMatch(.*)*",
+    meta: { title: "404" },
+    component: () => import("@/view/auth/404.vue"),
+  },
+  {
+    path: "/403",
+    meta: { title: "403" },
+    component: () => import("@/view/auth/403.vue"),
+  },
+  {
+    path: "/",
+    name: "Layout",
+    component: () => import("@/layout/index.vue"),
+    children: [...system],
+  },
+];
+
+export default createRouter({
+  history: createWebHistory(import.meta.env.VITE_BASE_NG),
+  routes,
+  strict: true,
 });
-
-setupGuard(router);
-
-/**
- * 登录态失效（任意接口 401）时统一回收：清 store、卸载动态路由、跳登录页并带上回跳地址。
- * 登录接口自己的 401 不会走到这里（见 api/http.ts）。
- */
-onUnauthorized(() => {
-  const auth = useAuthStore();
-  auth.reset();
-  resetMenuRoutes();
-
-  const current = router.currentRoute.value;
-  if (current.name === "Login") return;
-  void router.replace({
-    name: "Login",
-    query: current.fullPath === "/" ? {} : { redirect: current.fullPath },
-  });
-});
-
-export default router;

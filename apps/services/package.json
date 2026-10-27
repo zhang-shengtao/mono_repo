@@ -12,8 +12,6 @@
     "typecheck": "tsc --noEmit -p tsconfig.json",
     "gen:module": "tsx scripts/gen_module.ts",
     "db:push": "node --env-file=.env --import tsx src/db/script/push-db.ts",
-    "db:reset": "pnpm run db:recreate && pnpm run db:push && pnpm run db:seed:permissions && pnpm run db:seed:admin",
-    "db:recreate": "node --env-file=.env --import tsx src/db/script/recreate-db.ts",
     "db:seed:admin": "node --env-file=.env --import tsx src/db/script/admin-user.ts",
     "db:seed:permissions": "node --env-file=.env --import tsx src/db/script/permissions.ts"
   },

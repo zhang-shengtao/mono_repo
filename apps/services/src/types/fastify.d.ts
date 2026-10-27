@@ -7,27 +7,22 @@ import type {
   RawRequestDefaultExpression,
   RawServerDefault,
 } from "fastify";
-import type { JWT } from "@fastify/jwt";
 import type { FastifyRedis } from "@fastify/redis";
 import type { NodePgDatabase } from "drizzle-orm/node-postgres";
 import type { ZodTypeProvider } from "fastify-type-provider-zod";
 import type { BusinessCode } from "@repo/shared";
 import type { PermissionCode } from "@/permissions";
-import type { JwtPayload, RouteAuthConfig } from "@/types/auth";
+import type { JwtPayload, JwtRealm, RouteAuthConfig } from "@/types/auth";
 
-type JwtNamespace = Omit<JWT, "admin" | "user">;
 declare module "@fastify/jwt" {
   interface FastifyJWT {
     payload: JwtPayload;
-  }
-  interface JWT {
-    admin: JwtNamespace;
-    user: JwtNamespace;
+    /** 与 plugins/jwt.ts 的 REALMS 表一一对应：fastify.jwt 因此是 realm → JWT 的映射 */
+    namespaces: JwtRealm;
   }
 }
 
 declare module "fastify" {
-
   interface FastifyContextConfig {
     auth?: RouteAuthConfig["auth"];
     /** 需要的权限码，仅 auth: "admin" 时生效 */
@@ -46,13 +41,7 @@ declare module "fastify" {
 }
 
 declare global {
-  type FastifyInstance = FastifyInstanceBase<
-    RawServerDefault,
-    RawRequestDefaultExpression<RawServerDefault>,
-    RawReplyDefaultExpression<RawServerDefault>,
-    FastifyBaseLoggerBase,
-    ZodTypeProvider
-  >;
+  type FastifyInstance = FastifyInstanceBase<RawServerDefault, RawRequestDefaultExpression<RawServerDefault>, RawReplyDefaultExpression<RawServerDefault>, FastifyBaseLoggerBase, ZodTypeProvider>;
   type FastifyRequest = FastifyRequestBase;
   type FastifyReply = FastifyReplyBase;
   type FastifyBaseLogger = FastifyBaseLoggerBase;

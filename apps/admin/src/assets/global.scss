@@ -1,0 +1,12 @@
+// 这个文件是全局样式文件，里面存放一些全局的样式信息 需要把这个文件引入到 main.ts 里面
+@use "./theme.scss";
+
+body,
+html {
+  margin: 0;
+  padding: 0;
+  font-family: "Microsoft YaHei", "Helvetica Neue", Helvetica, Arial, sans-serif;
+  font-size: 14px;
+  color: #333;
+  background-color: #f5f5f5;
+}
