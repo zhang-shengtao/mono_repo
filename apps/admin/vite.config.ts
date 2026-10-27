@@ -1,21 +1,23 @@
-import register_plugins from "./plugin";
-import { resolve } from "path";
-import { defineConfig } from "vite";
+import register_plugins from "./plugin/index.ts";
+import path from "node:path";
+import { defineConfig, loadEnv } from "vite";
 
 export default defineConfig((option) => {
+  const env = loadEnv(option.mode, import.meta.dirname, "VITE_");
+  env.VITE_BASE_NG = path.posix.join("/", env.VITE_BASE_NG || "");
   return {
-    plugins: register_plugins(option),
-    base: import.meta.env.VITE_BASE_NG,
+    plugins: register_plugins(option, env),
+    base: env.VITE_BASE_NG,
     resolve: {
       alias: {
-        "@": resolve(__dirname, "./src"),
+        "@": path.resolve(import.meta.dirname, "./src"),
       },
     },
     server: {
       port: 5173,
       strictPort: true,
       proxy: {
-        "/admin": { target: import.meta.env.VITE_HTTP_BASE_URL, changeOrigin: true },
+        "/admin": { target: env.VITE_HTTP_BASE_URL, changeOrigin: true },
       },
     },
     build: {
