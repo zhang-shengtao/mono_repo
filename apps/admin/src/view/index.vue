@@ -9,9 +9,6 @@
 </script>
 
 <template>
-  <h1>Admin Panel</h1>
-  <my-icon name="svg:github" />
-
   <el-config-provider :locale="zhCn" :message="message">
     <router-view />
   </el-config-provider>
