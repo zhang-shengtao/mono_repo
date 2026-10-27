@@ -7,9 +7,18 @@ import { type RouteRecordRaw } from "vue-router";
 
 export default [
   {
-    path: "/system/setting",
-    name: "SystemSetting",
-    meta: { title: "系统设置", keepAlive: true, hidden: false, isScreen: true, target: false },
-    component: () => import("@/view/system/setting.vue"),
+    path: "/system",
+    name: "system",
+    meta: { title: "系统设置" },
+    component: () => import("@/layout/index.vue"),
+    redirect: "/system/setting",
+    children: [
+      {
+        path: "/setting",
+        name: "setting",
+        meta: { title: "系统配置" },
+        component: () => import("@/view/system/setting.vue"),
+      },
+    ],
   },
-];
+] satisfies RouteRecordRaw[];

@@ -25,5 +25,9 @@ coverage
 # unplugin-vue-components 生成的组件类型声明（每次 dev/build 重新生成，不入库）
 apps/admin/*.d.ts
 
+apps/admin/docs
+
 # 本地源码快照备份（重建前的保险），不随仓库提交
 .backup
+
+

@@ -30,10 +30,19 @@ const routes: RouteRecordRaw[] = [
   },
   {
     path: "/",
-    name: "Layout",
+    meta: { title: "仪表盘" },
     component: () => import("@/layout/index.vue"),
-    children: [...system],
+    redirect: "/dashboard",
+    children: [
+      {
+        path: "/dashboard",
+        name: "dashboard",
+        meta: { title: "仪表盘" },
+        component: () => import("@/view/dashboard/index.vue"),
+      },
+    ],
   },
+  ...system,
 ];
 
 export default createRouter({
