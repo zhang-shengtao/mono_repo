@@ -1,12 +1,431 @@
-// 这个文件是全局样式文件，里面存放一些全局的样式信息 需要把这个文件引入到 main.ts 里面
+// ============================================================================
+// global.scss —— 只放样式（主题变量全部在 theme.scss）
+//
+// 分工：
+//   布局 / 间距 / 字号 / 响应式 → 模板里的 Tailwind 原子类
+//   玻璃 / 光斑 / 渐变 / 动效 / 滚动条 / Element Plus 覆盖 → 这里
+// ============================================================================
 @use "./theme.scss";
 
+// ---------------------------------------------------------------------------
+// 1. 基础
+// ---------------------------------------------------------------------------
+* {
+  box-sizing: border-box;
+}
+
+html,
 body,
-html {
+#app {
+  height: 100%;
   margin: 0;
   padding: 0;
-  font-family: "Microsoft YaHei", "Helvetica Neue", Helvetica, Arial, sans-serif;
+}
+
+html {
+  color-scheme: light;
+}
+
+html.dark {
+  color-scheme: dark;
+}
+
+body {
+  font-family: var(--app-font);
   font-size: 14px;
-  color: #333;
-  background-color: #f5f5f5;
+  line-height: 1.6;
+  color: var(--app-text);
+  background-color: var(--app-bg);
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+a {
+  color: inherit;
+  text-decoration: none;
+}
+
+// ---------------------------------------------------------------------------
+// 2. 滚动条
+// ---------------------------------------------------------------------------
+.app-scroll {
+  scrollbar-width: thin;
+  scrollbar-color: color-mix(in srgb, var(--app-primary) 42%, transparent) transparent;
+
+  &::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+  }
+
+  &::-webkit-scrollbar-thumb {
+    background: color-mix(in srgb, var(--app-primary) 42%, transparent);
+    border-radius: var(--app-radius-pill);
+
+    &:hover {
+      background: color-mix(in srgb, var(--app-primary) 62%, transparent);
+    }
+  }
+
+  &::-webkit-scrollbar-track {
+    background: transparent;
+  }
+}
+
+.app-scroll-none {
+  scrollbar-width: none;
+
+  &::-webkit-scrollbar {
+    display: none;
+  }
+}
+
+// ---------------------------------------------------------------------------
+// 3. L0 光斑背景层（只做 transform 动画，不触发 layout）
+// ---------------------------------------------------------------------------
+.app-aurora {
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  overflow: hidden;
+  pointer-events: none;
+  background-color: var(--app-bg);
+  background-image: radial-gradient(circle at 82% 18%, var(--app-aurora-3), transparent 55%);
+
+  &::before,
+  &::after {
+    content: "";
+    position: absolute;
+    width: 62vw;
+    height: 62vw;
+    border-radius: 50%;
+    will-change: transform;
+  }
+
+  &::before {
+    top: -24vw;
+    left: -14vw;
+    background: radial-gradient(circle at center, var(--app-aurora-1), transparent 68%);
+    animation: aurora-drift-a 16s var(--app-ease) infinite alternate;
+  }
+
+  &::after {
+    right: -20vw;
+    bottom: -26vw;
+    background: radial-gradient(circle at center, var(--app-aurora-2), transparent 68%);
+    animation: aurora-drift-b 20s var(--app-ease) infinite alternate;
+  }
+}
+
+@keyframes aurora-drift-a {
+  from {
+    transform: translate3d(0, 0, 0) scale(1);
+  }
+  to {
+    transform: translate3d(6vw, 4vw, 0) scale(1.12);
+  }
+}
+
+@keyframes aurora-drift-b {
+  from {
+    transform: translate3d(0, 0, 0) scale(1.06);
+  }
+  to {
+    transform: translate3d(-5vw, -5vw, 0) scale(1);
+  }
+}
+
+// ---------------------------------------------------------------------------
+// 4. 玻璃 / 卡片工具类
+// ---------------------------------------------------------------------------
+.app-glass {
+  background: var(--app-glass);
+  backdrop-filter: var(--app-blur);
+  -webkit-backdrop-filter: var(--app-blur);
+  border: 1px solid var(--app-glass-border);
+  box-shadow: var(--app-shadow), var(--app-shadow-inset);
+}
+
+.app-card {
+  border-radius: var(--app-radius-lg);
+  background: var(--app-surface);
+  border: 1px solid var(--app-glass-border);
+  box-shadow: var(--app-shadow), var(--app-shadow-inset);
+  transition:
+    transform var(--app-dur) var(--app-ease),
+    box-shadow var(--app-dur) var(--app-ease),
+    border-color var(--app-dur) var(--app-ease);
+
+  &:hover {
+    transform: translateY(-2px);
+    box-shadow: var(--app-shadow-hover), var(--app-shadow-inset);
+    border-color: color-mix(in srgb, var(--app-primary) 34%, var(--app-glass-border));
+  }
+}
+
+// 强调文字的渐变字（KPI 数字、Logo 文案）
+.app-gradient-text {
+  background: linear-gradient(120deg, #6366f1 0%, #8b5cf6 52%, #22d3ee 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+// ---------------------------------------------------------------------------
+// 5. 页面切换动效（switchPageStyle ↔ transition name 的映射见 layout/index.ts）
+// ---------------------------------------------------------------------------
+.page-zoom-enter-active,
+.page-zoom-leave-active,
+.page-fade-enter-active,
+.page-fade-leave-active,
+.page-3d-enter-active,
+.page-3d-leave-active {
+  transition:
+    opacity 220ms var(--app-ease),
+    transform 260ms var(--app-ease);
+}
+
+.page-zoom-enter-from {
+  opacity: 0;
+  transform: scale(0.985) translateY(8px);
+}
+
+.page-zoom-leave-to {
+  opacity: 0;
+  transform: scale(1.005);
+}
+
+.page-fade-enter-from,
+.page-fade-leave-to {
+  opacity: 0;
+}
+
+.page-3d-enter-from {
+  opacity: 0;
+  transform: perspective(900px) rotateX(-4deg) translateY(10px);
+}
+
+.page-3d-leave-to {
+  opacity: 0;
+  transform: perspective(900px) rotateX(3deg);
+}
+
+// ---------------------------------------------------------------------------
+// 6. Element Plus 覆盖（EP 可能 Teleport 到 body，所以一律写全局）
+// ---------------------------------------------------------------------------
+
+// 6.1 菜单：选中项渐变胶囊 + 左侧发光竖条
+html .el-menu {
+  border-right: none;
+  background-color: transparent;
+}
+
+html .el-menu-item,
+html .el-sub-menu__title {
+  position: relative;
+  margin: 3px 8px;
+  border-radius: var(--app-radius-sm);
+  transition:
+    background-color var(--app-dur) var(--app-ease),
+    color var(--app-dur) var(--app-ease);
+
+  &:hover {
+    color: var(--app-primary);
+    background-color: color-mix(in srgb, var(--app-primary) 8%, transparent);
+  }
+}
+
+html .el-menu-item.is-active {
+  color: var(--app-primary);
+  font-weight: 600;
+  background-image: linear-gradient(
+    90deg,
+    color-mix(in srgb, var(--app-primary) 18%, transparent),
+    color-mix(in srgb, var(--app-primary) 4%, transparent)
+  );
+  background-color: transparent;
+
+  &::before {
+    content: "";
+    position: absolute;
+    top: 50%;
+    left: 2px;
+    width: 3px;
+    height: 18px;
+    border-radius: var(--app-radius-pill);
+    transform: translateY(-50%);
+    background: var(--app-primary);
+    box-shadow: 0 0 10px 1px color-mix(in srgb, var(--app-primary) 70%, transparent);
+  }
+
+  .my-icon {
+    color: var(--app-primary);
+  }
+}
+
+html .el-menu--collapse .el-menu-item,
+html .el-menu--collapse .el-sub-menu__title {
+  margin: 3px auto;
+  justify-content: center;
+  padding: 0 !important;
+
+  .el-sub-menu__icon-arrow {
+    display: none;
+  }
+}
+
+// 顶栏横向菜单：去掉胶囊 margin
+html .el-menu--horizontal {
+  background-color: transparent;
+
+  > .el-menu-item,
+  > .el-sub-menu > .el-sub-menu__title {
+    margin: 0 2px;
+    height: var(--app-header-h);
+    line-height: var(--app-header-h);
+    border-bottom: none !important;
+  }
+
+  > .el-menu-item.is-active {
+    background-image: none;
+    background-color: color-mix(in srgb, var(--app-primary) 12%, transparent);
+
+    &::before {
+      display: none;
+    }
+  }
+}
+
+// 6.2 按钮
+html .el-button {
+  border-radius: var(--app-radius-sm);
+  font-weight: 500;
+}
+
+html .el-button--primary:not(.is-plain):not(.is-text):not(.is-link) {
+  border-color: transparent;
+  background-image: linear-gradient(
+    120deg,
+    var(--app-primary),
+    color-mix(in srgb, var(--app-primary) 62%, #8b5cf6)
+  );
+  box-shadow: 0 10px 24px color-mix(in srgb, var(--app-primary) 28%, transparent);
+
+  &:hover,
+  &:focus {
+    background-image: linear-gradient(
+      120deg,
+      color-mix(in srgb, var(--app-primary) 88%, #fff),
+      color-mix(in srgb, var(--app-primary) 62%, #22d3ee)
+    );
+  }
+}
+
+// 6.3 输入 / 选择：玻璃底 + 焦点外发光
+html .el-input__wrapper,
+html .el-textarea__inner,
+html .el-select__wrapper {
+  border-radius: var(--app-radius-sm);
+  background-color: var(--app-glass);
+  box-shadow: inset 0 0 0 1px var(--app-glass-border);
+  transition:
+    box-shadow var(--app-dur) var(--app-ease),
+    background-color var(--app-dur) var(--app-ease);
+
+  &:hover {
+    box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--app-primary) 34%, transparent);
+  }
+}
+
+html .el-input__wrapper.is-focus,
+html .el-textarea__inner:focus,
+html .el-select__wrapper.is-focused {
+  box-shadow:
+    inset 0 0 0 1px var(--app-primary),
+    0 0 0 3px color-mix(in srgb, var(--app-primary) 16%, transparent);
+}
+
+// 6.4 表格：不用玻璃，保证可读性
+html .el-table {
+  --el-table-border-color: color-mix(in srgb, var(--app-text-3) 16%, transparent);
+  background-color: transparent;
+
+  th.el-table__cell {
+    font-weight: 600;
+    color: var(--app-text-2);
+    background-color: var(--el-table-header-bg-color);
+  }
+
+  tr,
+  td.el-table__cell {
+    background-color: transparent;
+  }
+
+  &::before,
+  .el-table__inner-wrapper::before {
+    display: none;
+  }
+}
+
+// 6.5 抽屉 / 浮层：玻璃
+html .el-drawer {
+  background: var(--app-glass);
+  backdrop-filter: var(--app-blur);
+  -webkit-backdrop-filter: var(--app-blur);
+  border-left: 1px solid var(--app-glass-border);
+
+  .el-drawer__header {
+    margin-bottom: 0;
+    padding: 16px 18px;
+    color: var(--app-text);
+    border-bottom: 1px solid var(--app-glass-border);
+  }
+
+  .el-drawer__body {
+    padding: 16px 18px;
+  }
+}
+
+// 移动端侧栏抽屉：body 不要内边距，让菜单自己贴边
+html .app-mobile-drawer .el-drawer__body {
+  padding: 0;
+}
+
+html .el-popper.is-light,
+html .el-dropdown__popper,
+html .el-picker__popper {
+  border: 1px solid var(--app-glass-border) !important;
+  border-radius: var(--app-radius) !important;
+  background: var(--app-surface) !important;
+  backdrop-filter: var(--app-blur);
+  -webkit-backdrop-filter: var(--app-blur);
+  box-shadow: var(--app-shadow) !important;
+}
+
+html .el-card {
+  border: 1px solid var(--app-glass-border);
+  border-radius: var(--app-radius-lg);
+  background: var(--app-surface);
+  box-shadow: var(--app-shadow), var(--app-shadow-inset);
+}
+
+html .el-divider {
+  border-color: color-mix(in srgb, var(--app-text-3) 18%, transparent);
+}
+
+// ---------------------------------------------------------------------------
+// 7. 降级：尊重系统的减少动效设置
+// ---------------------------------------------------------------------------
+@media (prefers-reduced-motion: reduce) {
+  .app-aurora::before,
+  .app-aurora::after {
+    animation: none !important;
+  }
+
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
 }

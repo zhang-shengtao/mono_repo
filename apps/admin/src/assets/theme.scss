@@ -1,1 +1,214 @@
-// 这个文件是全局的主题样式 可以在这里修改主题色 也可以在这里引入第三方的样式文件
+// ============================================================================
+// theme.scss —— 只放公共主题 CSS 变量
+//
+// 这里不写任何具体选择器的外观规则（那是 global.scss 的活），只有：
+//   :root           浅色令牌
+//   html.dark       深色令牌
+//   html[data-*]    侧栏明暗 / 材质 / 密度 的令牌覆盖
+//   以及 Element Plus 的变量映射（--el-*）
+//
+// 主色只有一个来源：--app-primary（由 layout/index.ts 的 applyTheme 运行时写入），
+// EP 的 9 级色阶用 color-mix() 在 CSS 里算，不需要任何 JS 颜色运算。
+// ============================================================================
+
+:root {
+  // ---- 主色 ----
+  --app-primary: #6366f1;
+
+  // ---- 背景与光斑 ----
+  --app-bg: #eef2ff;
+  --app-aurora-1: rgba(99, 102, 241, 0.28);
+  --app-aurora-2: rgba(34, 211, 238, 0.2);
+  --app-aurora-3: rgba(244, 114, 182, 0.14);
+
+  // ---- 玻璃 / 实体面 ----
+  --app-glass: rgba(255, 255, 255, 0.62);
+  --app-glass-border: rgba(255, 255, 255, 0.72);
+  --app-surface: rgba(255, 255, 255, 0.86);
+  --app-solid: #ffffff;
+  --app-header: rgba(255, 255, 255, 0.55);
+  --app-sidebar: rgba(255, 255, 255, 0.58);
+  --app-sidebar-text: #1e1b4b;
+  --app-sidebar-text-2: #4b5563;
+  --app-blur: blur(18px) saturate(150%);
+
+  // ---- 文本 ----
+  --app-text: #1e1b4b;
+  --app-text-2: #4b5563;
+  --app-text-3: #6b7280;
+
+  // ---- 语义色 ----
+  --app-success: #10b981;
+  --app-warning: #f59e0b;
+  --app-danger: #f43f5e;
+
+  // ---- 圆角 ----
+  --app-radius-lg: 18px;
+  --app-radius: 12px;
+  --app-radius-sm: 10px;
+  --app-radius-pill: 999px;
+
+  // ---- 阴影 ----
+  --app-shadow: 0 24px 60px rgba(49, 46, 129, 0.14);
+  --app-shadow-inset: inset 0 1px 0 rgba(255, 255, 255, 0.6);
+  --app-shadow-hover: 0 30px 70px rgba(49, 46, 129, 0.2);
+
+  // ---- 动效 ----
+  --app-dur: 240ms;
+  --app-ease: cubic-bezier(0.22, 0.61, 0.36, 1);
+
+  // ---- 尺寸 ----
+  --app-header-h: 60px;
+  --app-tabs-h: 40px;
+  --app-sidebar-w: 232px;
+  --app-sidebar-w-collapsed: 68px;
+  --app-page-pad: 20px;
+  --app-gap: 16px;
+  --app-content-max: 1440px;
+
+  // ---- 字体 ----
+  --app-font: Inter, "PingFang SC", "Microsoft YaHei", ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+
+  // ==========================================================================
+  // Element Plus 变量映射
+  // ==========================================================================
+  --el-color-primary: var(--app-primary);
+  --el-color-primary-light-3: color-mix(in srgb, var(--app-primary) 70%, #fff);
+  --el-color-primary-light-5: color-mix(in srgb, var(--app-primary) 50%, #fff);
+  --el-color-primary-light-7: color-mix(in srgb, var(--app-primary) 30%, #fff);
+  --el-color-primary-light-8: color-mix(in srgb, var(--app-primary) 20%, #fff);
+  --el-color-primary-light-9: color-mix(in srgb, var(--app-primary) 10%, #fff);
+  --el-color-primary-dark-2: color-mix(in srgb, var(--app-primary) 80%, #000);
+
+  --el-color-success: var(--app-success);
+  --el-color-warning: var(--app-warning);
+  --el-color-danger: var(--app-danger);
+  --el-color-error: var(--app-danger);
+
+  --el-font-family: var(--app-font);
+  --el-border-radius-base: var(--app-radius-sm);
+  --el-border-radius-small: 8px;
+  --el-border-radius-round: var(--app-radius-pill);
+
+  --el-text-color-primary: var(--app-text);
+  --el-text-color-regular: var(--app-text-2);
+  --el-text-color-secondary: var(--app-text-3);
+
+  // el-menu（侧栏/顶栏菜单的底色与文字，紧跟侧栏令牌）
+  --el-menu-bg-color: transparent;
+  --el-menu-text-color: var(--app-sidebar-text-2);
+  --el-menu-active-color: var(--app-primary);
+  --el-menu-hover-bg-color: transparent;
+  --el-menu-item-height: 44px;
+  --el-menu-sub-item-height: 40px;
+  --el-menu-horizontal-height: 44px;
+
+  // el-table：行透明、表头 tint 主色（可读性红线：表格不用玻璃）
+  --el-table-bg-color: transparent;
+  --el-table-tr-bg-color: transparent;
+  --el-table-header-bg-color: color-mix(in srgb, var(--app-primary) 4%, transparent);
+  --el-table-row-hover-bg-color: color-mix(in srgb, var(--app-primary) 3%, transparent);
+  --el-table-border-color: color-mix(in srgb, var(--app-text-3) 16%, transparent);
+}
+
+// ============================================================================
+// 深色
+// ============================================================================
+html.dark {
+  --app-bg: #070b14;
+  --app-aurora-1: rgba(99, 102, 241, 0.22);
+  --app-aurora-2: rgba(34, 211, 238, 0.14);
+  --app-aurora-3: rgba(244, 114, 182, 0.1);
+
+  --app-glass: rgba(15, 23, 42, 0.55);
+  --app-glass-border: rgba(148, 163, 184, 0.18);
+  --app-surface: rgba(17, 25, 40, 0.82);
+  --app-solid: #121a2b;
+  --app-header: rgba(8, 12, 22, 0.6);
+  --app-sidebar: rgba(10, 16, 30, 0.62);
+  --app-sidebar-text: #e2e8f0;
+  --app-sidebar-text-2: #94a3b8;
+
+  --app-text: #e2e8f0;
+  --app-text-2: #94a3b8;
+  --app-text-3: #64748b;
+
+  --app-success: #24a37e;
+  --app-warning: #d99a3c;
+  --app-danger: #e05572;
+
+  --app-shadow: 0 24px 60px rgba(0, 0, 0, 0.45);
+  --app-shadow-inset: inset 0 1px 0 rgba(255, 255, 255, 0.06);
+  --app-shadow-hover: 0 30px 70px rgba(0, 0, 0, 0.55);
+
+  // 深色下 EP 的色阶是往深底（#141414）混，不是往白混
+  --el-color-primary-light-3: color-mix(in srgb, var(--app-primary) 70%, #141414);
+  --el-color-primary-light-5: color-mix(in srgb, var(--app-primary) 50%, #141414);
+  --el-color-primary-light-7: color-mix(in srgb, var(--app-primary) 30%, #141414);
+  --el-color-primary-light-8: color-mix(in srgb, var(--app-primary) 20%, #141414);
+  --el-color-primary-light-9: color-mix(in srgb, var(--app-primary) 10%, #141414);
+  --el-color-primary-dark-2: color-mix(in srgb, var(--app-primary) 80%, #fff);
+}
+
+// ============================================================================
+// 侧栏明暗（与全局明暗解耦）
+// ============================================================================
+html[data-sidebar="dark"] {
+  --app-sidebar: rgba(10, 16, 30, 0.62);
+  --app-sidebar-text: #e2e8f0;
+  --app-sidebar-text-2: #94a3b8;
+  --el-menu-text-color: #94a3b8;
+}
+
+// ============================================================================
+// 材质：solid 去掉模糊与透明（低端机 / 不喜欢光效时用）
+// 注意：必须排在 html.dark 之后，同权重后来者胜
+// ============================================================================
+html[data-material="solid"] {
+  --app-glass: var(--app-solid);
+  --app-surface: var(--app-solid);
+  --app-header: var(--app-solid);
+  --app-sidebar: var(--app-solid);
+  --app-glass-border: rgba(15, 23, 42, 0.08);
+  --app-blur: none;
+  --app-shadow-inset: none;
+  --app-shadow: 0 18px 40px rgba(49, 46, 129, 0.1);
+}
+
+html.dark[data-material="solid"],
+html[data-sidebar="dark"][data-material="solid"] {
+  --app-sidebar: #121a2b;
+  --app-glass-border: rgba(148, 163, 184, 0.18);
+  --app-shadow: 0 18px 40px rgba(0, 0, 0, 0.45);
+}
+
+// ============================================================================
+// 密度：紧凑模式同时驱动 EP 组件尺寸（不只是缩 padding）
+// ============================================================================
+html[data-density="compact"] {
+  --app-page-pad: 14px;
+  --app-gap: 12px;
+  --app-header-h: 52px;
+  --app-tabs-h: 34px;
+  --el-component-size: 30px;
+  --el-component-size-small: 24px;
+  --el-component-size-large: 38px;
+  --el-font-size-base: 13px;
+  --el-menu-item-height: 38px;
+  --el-menu-sub-item-height: 34px;
+}
+
+// ============================================================================
+// 移动端：玻璃更实一点，避免小屏上文字被光斑干扰
+// ============================================================================
+@media (max-width: 992px) {
+  :root {
+    --app-glass: rgba(255, 255, 255, 0.82);
+    --app-header: rgba(255, 255, 255, 0.85);
+  }
+
+  html.dark {
+    --app-glass: rgba(15, 23, 42, 0.86);
+    --app-header: rgba(8, 12, 22, 0.88);
+  }
+}

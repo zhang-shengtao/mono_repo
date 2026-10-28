@@ -17,7 +17,24 @@ export default defineConfig((option) => {
       port: 5173,
       strictPort: true,
       proxy: {
-        "/admin": { target: env.VITE_HTTP_BASE_URL, changeOrigin: true },
+        "/admin": {
+          target: env.VITE_HTTP_BASE_URL,
+          changeOrigin: true,
+          // base 与代理前缀都是 /admin，dev 下会把页面自身（以及 /admin/@vite/client）
+          // 一起转给后端。这里让「页面导航 + Vite 自身资源」旁路掉代理，只代理真正的接口请求。
+          bypass: (req: any) => {
+            if (req.method !== "GET") return;
+            const url: string = req.url ?? "";
+            const accept: string = String(req.headers?.accept ?? "");
+            const isPage = accept.includes("text/html");
+            const isViteOwn =
+              url.startsWith("/admin/@") ||
+              url.includes("/src/") ||
+              /\.(js|mjs|ts|vue|css|scss|svg|png|jpe?g|gif|ico|woff2?|ttf|json|map)(\?|$)/.test(url);
+            if (isPage || isViteOwn) return url;
+            return;
+          },
+        },
       },
     },
     build: {

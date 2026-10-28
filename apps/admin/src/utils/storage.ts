@@ -1,3 +1,7 @@
+// type ji = string | number | null | undefined;
+// type arr = ji[];
+// type obj = Record<string, ji | arr | obj>;
+
 /** 获取 localStorage 实例；SSR、隐私模式或禁用缓存时返回 null，避免直接调用报错 */
 function getStore(): Storage | null {
   try {
