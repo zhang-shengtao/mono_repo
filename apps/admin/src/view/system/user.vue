@@ -6,10 +6,10 @@
   defineOptions({ name: "systemUser" });
 
   const columns = [
-    { prop: "name", label: "姓名", width: 160 },
-    { prop: "account", label: "账号", width: 160 },
-    { prop: "role", label: "角色", width: 140 },
-    { prop: "status", label: "状态", width: 120 },
+    { prop: "name", label: "姓名" },
+    { prop: "account", label: "账号" },
+    { prop: "role", label: "角色" },
+    { prop: "status", label: "状态" },
   ];
 
   const rows = [
@@ -19,21 +19,7 @@
 </script>
 
 <template>
-  <div class="flex flex-col gap-[var(--app-gap)]">
-    <header>
-      <h1 class="m-0 text-[22px] font-semibold tracking-tight text-ink">用户管理</h1>
-      <p class="mt-1 text-[13px] text-ink-3">占位页：表格区用实体面（不用玻璃），保证可读性。</p>
-    </header>
-
-    <section class="app-card p-5">
-      <div class="mb-3 flex items-center justify-between gap-3">
-        <h2 class="m-0 text-[16px] font-semibold text-ink">用户列表</h2>
-        <el-button size="small" type="primary">新增用户</el-button>
-      </div>
-
-      <el-table :data="rows" size="small">
-        <el-table-column v-for="column in columns" :key="column.prop" :prop="column.prop" :label="column.label" :width="column.width" />
-      </el-table>
-    </section>
-  </div>
+  <el-table :data="rows" size="small" border>
+    <el-table-column v-for="column in columns" :key="column.prop" :prop="column.prop" :label="column.label" :width="column.width" />
+  </el-table>
 </template>
