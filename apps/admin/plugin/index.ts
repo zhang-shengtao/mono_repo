@@ -8,7 +8,6 @@ import type { ConfigEnv } from "vite";
 export default function register_plugins(option: ConfigEnv, env: Record<string, string>) {
   return [
     vue(),
-    // Tailwind CSS v4：CSS-first 配置，不生成 tailwind.config.js
     tailwindcss(),
     ...AutoImport(),
     createSvgIconsPlugin({

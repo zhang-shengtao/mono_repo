@@ -1,70 +1,88 @@
 <script setup lang="ts">
-  /**
-   * 顶栏右区：搜索(Ctrl+K) / 全屏 / 明暗 / 材质 / 设置 / 用户下拉
-   */
-  import { ElMessage } from "element-plus";
-  import layout from "@/layout";
+  defineOptions({ name: "LayoutHeaderRight" });
+  const router = useRouter();
 
-  defineOptions({ name: "HeaderRight" });
+  import layoutData from "@/layout";
 
   const { isFullscreen, toggle: toggleFullscreen } = useFullscreen();
 
-  const avatarText = computed(() => layout.userInfo.name.slice(0, 1) || "U");
+  const avatarText = computed(() => layoutData.userInfo.name.slice(0, 1) || "U");
 
-  const materialTip = computed(() => (layout.settings.material === "glass" ? "切换纯色材质" : "切换玻璃材质"));
+  interface HeaderAction {
+    key: string;
+    icon: string;
+    tip: string;
+    run: () => void;
+  }
 
-  function onUserCommand(command: string | number | object) {
-    if (command === "setting" || command === "appearance") {
-      layout.openSetting();
-      return;
-    }
+  const allActions = computed<HeaderAction[]>(() => [
+    {
+      key: "search",
+      icon: "Search",
+      tip: "搜索菜单 (Ctrl + K)",
+      run: () => {
+        layoutData.commandOpen = true;
+      },
+    },
+    {
+      key: "fullscreen",
+      icon: isFullscreen.value ? "Aim" : "FullScreen",
+      tip: isFullscreen.value ? "退出全屏" : "全屏",
+      run: () => toggleFullscreen(),
+    },
+    {
+      key: "theme",
+      icon: layoutData.isDark ? "Sunny" : "Moon",
+      tip: layoutData.isDark ? "切换到浅色" : "切换到深色",
+      run: () => {
+        layoutData.theme = layoutData.isDark ? "light" : "dark";
+      },
+    },
+    {
+      key: "material",
+      icon: layoutData.material === "glass" ? "MagicStick" : "Grid",
+      tip: layoutData.material === "glass" ? "切换纯色材质" : "切换玻璃材质",
+      run: () => {
+        layoutData.material = layoutData.material === "glass" ? "solid" : "glass";
+      },
+    },
+    {
+      key: "setting",
+      icon: "Setting",
+      tip: "外观设置",
+      run: () => {
+        layoutData.isSettingOpen = true;
+      },
+    },
+  ]);
+
+  const actions = computed(() => (layoutData.isMobile ? allActions.value.filter((item) => item.key === "search") : allActions.value));
+
+  function onCommand(command: string | number | object) {
+    if (command === "setting" || command === "appearance") layoutData.isSettingOpen = true;
+
     if (command === "logout") {
-      // 登录模块下一轮接入
-      ElMessage.info("登录模块下一轮接入");
+      router.replace("/login");
     }
   }
 </script>
 
 <template>
-  <div class="flex shrink-0 items-center gap-0.5">
-    <el-tooltip content="搜索菜单 (Ctrl + K)" placement="bottom">
-      <el-button text circle @click="layout.openCommand()">
-        <MyIcon name="Search" :size="18" />
-      </el-button>
+  <div class="header-right">
+    <el-tooltip v-for="action in actions" :key="action.key" :content="action.tip" placement="bottom" :show-after="360">
+      <button type="button" class="app-icon-btn" @click="action.run()">
+        <MyIcon :name="action.icon" :size="18" />
+      </button>
     </el-tooltip>
 
-    <el-tooltip :content="isFullscreen ? '退出全屏' : '全屏'" placement="bottom">
-      <el-button text circle @click="toggleFullscreen()">
-        <MyIcon :name="isFullscreen ? 'Aim' : 'FullScreen'" :size="18" />
-      </el-button>
-    </el-tooltip>
+    <span class="header-divider" aria-hidden="true" />
 
-    <el-tooltip :content="layout.isDark ? '切换到浅色' : '切换到深色'" placement="bottom">
-      <el-button text circle @click="layout.toggleTheme()">
-        <MyIcon :name="layout.isDark ? 'Sunny' : 'Moon'" :size="18" />
-      </el-button>
-    </el-tooltip>
-
-    <el-tooltip :content="materialTip" placement="bottom">
-      <el-button text circle @click="layout.toggleMaterial()">
-        <MyIcon :name="layout.settings.material === 'glass' ? 'MagicStick' : 'Grid'" :size="18" />
-      </el-button>
-    </el-tooltip>
-
-    <el-tooltip content="外观设置" placement="bottom">
-      <el-button text circle @click="layout.openSetting()">
-        <MyIcon name="Setting" :size="18" />
-      </el-button>
-    </el-tooltip>
-
-    <el-dropdown trigger="click" @command="onUserCommand">
-      <div class="ml-1 flex cursor-pointer items-center gap-2 rounded-btn px-1.5 py-1 transition-colors hover:bg-[color-mix(in_srgb,var(--app-primary)_10%,transparent)]">
-        <el-avatar :size="26" class="shrink-0 bg-gradient-to-br from-[#6366f1] to-[#22d3ee] text-[12px]">
-          {{ avatarText }}
-        </el-avatar>
-        <span class="hidden max-w-[92px] truncate text-[13px] text-ink md:inline">{{ layout.userInfo.name }}</span>
+    <el-dropdown trigger="click" @command="onCommand">
+      <button type="button" class="header-user">
+        <el-avatar :size="24" class="header-avatar">{{ avatarText }}</el-avatar>
+        <span class="header-user-name">{{ layoutData.userInfo.name }}</span>
         <MyIcon name="ArrowDown" :size="12" color="var(--app-text-3)" />
-      </div>
+      </button>
 
       <template #dropdown>
         <el-dropdown-menu>
@@ -76,3 +94,66 @@
     </el-dropdown>
   </div>
 </template>
+
+<style lang="scss" scoped>
+  .header-right {
+    display: flex;
+    flex-shrink: 0;
+    align-items: center;
+    gap: 2px;
+    margin-left: auto;
+  }
+
+  .header-divider {
+    width: 1px;
+    height: 16px;
+    margin: 0 6px;
+    background-color: color-mix(in srgb, var(--app-text-3) 22%, transparent);
+  }
+
+  .header-user {
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    height: 30px;
+    padding: 0 7px;
+    border: 1px solid transparent;
+    border-radius: 9px;
+    background: transparent;
+    cursor: pointer;
+    transition:
+      background-color var(--app-dur) var(--app-ease),
+      border-color var(--app-dur) var(--app-ease);
+
+    &:hover {
+      border-color: color-mix(in srgb, var(--app-primary) 22%, transparent);
+      background-color: color-mix(in srgb, var(--app-primary) 8%, transparent);
+    }
+  }
+
+  .header-avatar {
+    flex-shrink: 0;
+    font-size: 12px;
+    font-weight: 600;
+    background-image: linear-gradient(135deg, var(--app-primary), color-mix(in srgb, var(--app-primary) 45%, #22d3ee));
+  }
+
+  .header-user-name {
+    max-width: 92px;
+    overflow: hidden;
+    font-size: 13px;
+    color: var(--app-text-2);
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  @media (max-width: 768px) {
+    .header-user-name {
+      display: none;
+    }
+
+    .header-divider {
+      display: none;
+    }
+  }
+</style>

@@ -1,15 +1,16 @@
-/**
- * 系统管理子路由（纯子路由导出，不再自带 layout 壳）
- *
- * 挂载点见 router/index.ts 的 "/" 路由 children：全站只有这一个壳实例。
- */
 import type { RouteRecordRaw } from "vue-router";
+
+// const keepAlive = true; // 是否缓存当前页面
+// const hidden = true; // 是否隐藏当前目录
+// const isScreen = true; // 是否占满mainApp的内容
+// const target = true; // 显示在侧边目录点击是否打开一个新的标签页
 
 export default [
   {
     path: "/system",
     name: "system",
     meta: { title: "系统管理", icon: "Setting" },
+    component: () => import("@/layout/index.vue"),
     redirect: "/system/setting",
     children: [
       {

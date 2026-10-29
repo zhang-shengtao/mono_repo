@@ -1,51 +1,24 @@
 <script setup lang="ts">
-  /**
-   * 递归菜单项
-   *
-   * 不做跳转：点击由 el-menu 的 select 事件统一处理（index 带前缀，避免顶栏/侧栏串台）。
-   */
-  import type { MenuItem } from "@/types/menu";
+  defineOptions({ name: "MenuItem" });
+  import type { RouteRecordRaw } from "vue-router";
+  import AppLink from "./AppLink.vue";
 
-  defineOptions({ name: "LayoutMenuItem" });
-
-  const props = defineProps<{
-    item: MenuItem;
-    /** el-menu 的 index 前缀，区分顶栏与侧栏两套菜单 */
-    prefix: string;
-  }>();
-
-  const children = computed(() =>
-    (props.item.children ?? []).filter((child) => !child.meta.hidden && child.type !== "button"),
-  );
+  withDefaults(defineProps<{ item: RouteRecordRaw }>(), {});
 </script>
 
 <template>
-  <el-sub-menu v-if="children.length" :index="prefix + item.path">
+  <el-sub-menu :index="item.path" v-if="item.children && item.children.length">
     <template #title>
-      <MyIcon v-if="item.meta.icon" :name="item.meta.icon" :size="18" class="mr-2 shrink-0" />
-      <span class="truncate">{{ item.meta.title }}</span>
+      <my-icon v-if="item.meta?.icon" :name="item.meta.icon" />
+      <span>{{ (item.meta && item.meta.title) || "默认" }}</span>
     </template>
-
-    <MenuItem v-for="child in children" :key="child.path" :item="child" :prefix="prefix" />
+    <menu-item v-for="items in item.children" :key="items.path" :item="items" />
   </el-sub-menu>
 
-  <el-menu-item v-else :index="prefix + item.path">
-    <MyIcon v-if="item.meta.icon" :name="item.meta.icon" :size="18" class="mr-2 shrink-0" />
-    <template #title>
-      <span class="flex-1 truncate">{{ item.meta.title }}</span>
-      <span v-if="item.meta.badge" class="app-menu-badge">{{ item.meta.badge }}</span>
-    </template>
-  </el-menu-item>
+  <app-link v-else :path="item.path" :target="item.meta?.target || false">
+    <el-menu-item :index="item.path">
+      <my-icon v-if="item.meta && item.meta.icon" :name="item.meta.icon" />
+      <template #title> {{ (item.meta && item.meta.title) || "默认" }}</template>
+    </el-menu-item>
+  </app-link>
 </template>
-
-<style lang="scss" scoped>
-  .app-menu-badge {
-    margin-left: 6px;
-    padding: 0 6px;
-    font-size: 11px;
-    line-height: 16px;
-    color: #fff;
-    background: linear-gradient(120deg, #6366f1, #8b5cf6);
-    border-radius: var(--app-radius-pill);
-  }
-</style>

@@ -1,26 +1,34 @@
 <script setup lang="ts">
-  /**
-   * 顶栏左区：移动端汉堡 / 侧栏折叠 / 面包屑
-   */
+  defineOptions({ name: "LayoutHeaderLeft" });
+
   import Breadcrumb from "./Breadcrumb.vue";
-  import layout from "@/layout";
+  import layoutData from "@/layout";
 
-  defineOptions({ name: "HeaderLeft" });
+  const route = useRoute();
 
-  /** top 布局没有侧栏，不显示折叠按钮 */
-  const showCollapse = computed(() => !layout.isMobile && layout.settings.layoutStyle !== "top");
+  // 混合布局里当前模块没有二级菜单时侧栏是收起的，折叠按钮也就没有意义
+  const hasSide = computed(() => layoutData.layoutStyle !== "top" && !(layoutData.layoutStyle === "mix" && layoutData.getModuleMenus(route.path).length === 0));
+
+  const showToggle = computed(() => layoutData.isMobile || hasSide.value);
+
+  const showBreadcrumb = computed(() => layoutData.isShowBreadcrumbs && !layoutData.isMobile && layoutData.layoutStyle === "side");
 </script>
 
 <template>
-  <div class="flex min-w-0 items-center gap-1.5">
-    <el-button v-if="layout.isMobile" text circle @click="layout.toggleMobileMenu()">
-      <MyIcon name="Expand" :size="18" />
-    </el-button>
-
-    <el-button v-else-if="showCollapse" text circle @click="layout.toggleCollapse()">
-      <MyIcon :name="layout.settings.isCollapse ? 'Expand' : 'Fold'" :size="18" />
-    </el-button>
-
-    <Breadcrumb v-if="layout.settings.isShowBreadcrumbs && !layout.isMobile" class="ml-1" />
+  <div class="header-left">
+    <button v-if="showToggle" type="button" class="app-icon-btn" :title="layoutData.isCollapse ? '展开菜单' : '收起菜单'" @click="layoutData.isCollapse = !layoutData.isCollapse">
+      <MyIcon :name="layoutData.isCollapse ? 'Expand' : 'Fold'" :size="18" />
+    </button>
+    <Breadcrumb v-if="showBreadcrumb" />
   </div>
 </template>
+
+<style lang="scss" scoped>
+  .header-left {
+    display: flex;
+    min-width: 0;
+    align-items: center;
+    gap: 10px;
+    flex-shrink: 0;
+  }
+</style>

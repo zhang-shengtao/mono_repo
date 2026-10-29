@@ -1,47 +1,13 @@
-/**
- * layout 的数据仓库（唯一出口）
- *
- * 规则：layout 子目录只能 import 本子目录 + `@/layout` + `@/types` + vue/vueuse。
- * 凡是被多个子目录用到的状态/方法，全部收敛到这里，子目录之间互不引用。
- *
- * 这里只回答「后台长什么样、怎么摆」：
- * 布局状态、菜单派生、页签、主题映射、UI 开关。
- * 不做接口请求、不做鉴权、不同步 document.title。
- */
-import { userPinia } from "@/pinia";
-import type { MenuItem } from "@/types/menu";
+import type { RouteRecordRaw } from "vue-router";
 
-// ============================================================================
-// 类型
-// ============================================================================
 export type LayoutStyle = "side" | "top" | "mix";
-export type SwitchPageStyle = "zoom" | "fadeIn" | "3D" | "none";
+export type SwitchPageStyle = "zoom" | "fadeIn" | "slide" | "rise" | "blur" | "3D" | "flip" | "reveal" | "none";
+export type AppTheme = "light" | "dark" | "auto";
 
-export interface LayoutSettings {
-  /** 侧栏折叠 */
-  isCollapse: boolean;
-  /** 明暗 */
-  theme: "light" | "dark";
-  /** 布局：左侧 / 顶部 / 混合 */
-  layoutStyle: LayoutStyle;
-  /** 页面切换动效 */
-  switchPageStyle: SwitchPageStyle;
-  /** 显示面包屑 */
-  isShowBreadcrumbs: boolean;
-  /** 显示多页签 */
-  isShowTabs: boolean;
-  /** 显示 Logo */
-  isShowLogo: boolean;
-  /** 主色 */
-  primaryColor: string;
-  /** 内容宽度 */
-  contentWidth: "fluid" | "boxed";
-  /** 侧栏明暗 */
-  sidebarTheme: "light" | "dark";
-  /** 材质：玻璃 / 纯色 */
-  material: "glass" | "solid";
-  /** 密度 */
-  density: "comfortable" | "compact";
+export interface LayoutUserInfo {
+  name: string;
+  account: string;
+  avatar?: string;
 }
 
 export interface AppTab {
@@ -49,16 +15,195 @@ export interface AppTab {
   fullPath: string;
   name: string;
   title: string;
-  affix?: boolean;
-  keepAlive?: boolean;
 }
 
-// ============================================================================
-// 默认值 / 缓存
-// ============================================================================
-export const LAYOUT_CACHE_KEY = "admin:layout:v1";
+export interface LayoutSettings {
+  menuList: RouteRecordRaw[];
+  isCollapse: boolean;
+  theme: AppTheme;
+  layoutStyle: LayoutStyle;
+  switchPageStyle: SwitchPageStyle;
+  isShowBreadcrumbs: boolean;
+  isShowTabs: boolean;
+  isShowLogo: boolean;
+  primaryColor: string;
+  sidebarTheme: "light" | "dark";
+  material: "glass" | "solid";
+  isSettingOpen: boolean;
+}
 
-export const DEFAULT_LAYOUT_STATE: LayoutSettings = {
+export const PRIMARY_PRESETS = ["#6366f1", "#0ea5e9", "#10b981", "#f59e0b", "#f43f5e", "#8b5cf6"];
+
+export const LAYOUT_STYLE_OPTIONS: { value: LayoutStyle; label: string }[] = [
+  { value: "side", label: "侧栏" },
+  { value: "top", label: "顶部" },
+  { value: "mix", label: "混合" },
+];
+
+export const THEME_OPTIONS: { value: AppTheme; label: string; icon: string }[] = [
+  { value: "light", label: "浅色", icon: "Sunny" },
+  { value: "dark", label: "深色", icon: "Moon" },
+  { value: "auto", label: "跟随系统", icon: "Monitor" },
+];
+
+export const PAGE_STYLE_OPTIONS: { value: SwitchPageStyle; label: string }[] = [
+  { value: "zoom", label: "缩放淡入" },
+  { value: "fadeIn", label: "纯淡入" },
+  { value: "slide", label: "左右滑动" },
+  { value: "rise", label: "底部上浮" },
+  { value: "blur", label: "模糊聚焦" },
+  { value: "3D", label: "3D 翻转" },
+  { value: "flip", label: "翻页折叠" },
+  { value: "reveal", label: "幕帘揭示" },
+  { value: "none", label: "无动效" },
+];
+
+/** 动效值 → `<transition>` 的 name，none 表示不加任何过渡类 */
+const PAGE_TRANSITION_NAMES: Record<SwitchPageStyle, string> = {
+  zoom: "page-zoom",
+  fadeIn: "page-fade",
+  slide: "page-slide",
+  rise: "page-rise",
+  blur: "page-blur",
+  "3D": "page-3d",
+  flip: "page-flip",
+  reveal: "page-reveal",
+  none: "",
+};
+
+const fakeMenus: RouteRecordRaw[] = [
+  {
+    path: "/dashboard",
+    name: "dashboard",
+    redirect: "/dashboard",
+    meta: { title: "仪表盘", icon: "Odometer", isScreen: true, target: true },
+  },
+  {
+    path: "/system",
+    name: "system",
+    redirect: "/system/user",
+    meta: { title: "系统管理", icon: "Setting" },
+    children: [
+      {
+        path: "/system/user",
+        name: "systemUser",
+        redirect: "/system/user",
+        meta: { title: "用户管理", icon: "User" },
+      },
+      {
+        path: "https://element-plus.org",
+        name: "external",
+        redirect: "/dashboard",
+        meta: { title: "外部链接", icon: "Link" },
+      },
+      {
+        path: "/system/role",
+        name: "systemRole",
+        redirect: "/system/user",
+        meta: { title: "角色管理", icon: "Avatar" },
+      },
+      {
+        path: "/system/permission",
+        name: "systemPermission",
+        redirect: "/system/user",
+        meta: { title: "权限管理", icon: "Lock" },
+      },
+      {
+        path: "/system/setting",
+        name: "systemSetting",
+        redirect: "/system/setting",
+        meta: { title: "系统设置", icon: "Tools" },
+        children: [
+          {
+            path: "/system/setting/base",
+            name: "systemSettingBase",
+            redirect: "/system/setting",
+            meta: { title: "基础配置", icon: "Operation" },
+          },
+          {
+            path: "/system/setting/secure",
+            name: "systemSettingSecure",
+            redirect: "/system/setting",
+            meta: { title: "安全策略", icon: "Key" },
+          },
+        ],
+      },
+    ],
+  },
+  {
+    path: "/content",
+    name: "content",
+    redirect: "/dashboard",
+    meta: { title: "内容管理", icon: "Document" },
+    children: [
+      {
+        path: "/content/article",
+        name: "contentArticle",
+        redirect: "/dashboard",
+        meta: { title: "文章管理", icon: "Notebook" },
+      },
+      {
+        path: "/content/category",
+        name: "contentCategory",
+        redirect: "/dashboard",
+        meta: { title: "分类管理", icon: "Files" },
+      },
+      {
+        path: "/content/tag",
+        name: "contentTag",
+        redirect: "/dashboard",
+        meta: { title: "标签管理", icon: "PriceTag" },
+      },
+    ],
+  },
+  {
+    path: "/chart",
+    name: "chart",
+    redirect: "/dashboard",
+    meta: { title: "数据可视化", icon: "DataLine" },
+    children: [
+      {
+        path: "/chart/pie",
+        name: "chartPie",
+        redirect: "/dashboard",
+        meta: { title: "饼图", icon: "PieChart" },
+      },
+      {
+        path: "/chart/trend",
+        name: "chartTrend",
+        redirect: "/dashboard",
+        meta: { title: "趋势分析", icon: "TrendCharts" },
+      },
+    ],
+  },
+  {
+    path: "/monitor",
+    name: "monitor",
+    redirect: "/dashboard",
+    meta: { title: "系统监控", icon: "Monitor" },
+  },
+  {
+    path: "/log",
+    name: "log",
+    redirect: "/dashboard",
+    meta: { title: "日志中心", icon: "Tickets" },
+  },
+  {
+    path: "/component",
+    name: "component",
+    redirect: "/dashboard",
+    meta: { title: "组件示例", icon: "Grid" },
+  },
+  {
+    path: "https://element-plus.org",
+    name: "external",
+    redirect: "/dashboard",
+    meta: { title: "外部链接", icon: "Link" },
+  },
+];
+
+export const DEFAULT_LAYOUT_SETTINGS: LayoutSettings = {
+  menuList: fakeMenus,
   isCollapse: false,
   theme: "light",
   layoutStyle: "side",
@@ -67,291 +212,77 @@ export const DEFAULT_LAYOUT_STATE: LayoutSettings = {
   isShowTabs: true,
   isShowLogo: true,
   primaryColor: "#6366f1",
-  contentWidth: "fluid",
   sidebarTheme: "light",
   material: "glass",
-  density: "comfortable",
+  isSettingOpen: false,
 };
 
-/** 布局设置（持久化；mergeDefaults 兜住将来新增字段） */
-const settings = useStorage<LayoutSettings>(LAYOUT_CACHE_KEY, DEFAULT_LAYOUT_STATE, localStorage, {
-  mergeDefaults: true,
-});
+const settings = reactive<LayoutSettings>({ ...DEFAULT_LAYOUT_SETTINGS });
 
-// ============================================================================
-// 用户 / 菜单（惰性取 store）
-//
-// 不能在模块顶层直接 userPinia()：一旦有人从静态链路 import 这个模块，
-// 求值期 pinia 还没被 app.use() 激活，会抛 getActivePinia() 错误。
-// computed 的 getter 是首次访问才执行的，天然安全。
-// ============================================================================
-let _store: ReturnType<typeof userPinia> | undefined;
-const store = () => (_store ??= userPinia());
-
-export const userInfo = computed(() => store().userInfo);
-const menuTree = computed<MenuItem[]>(() => store().menuList);
-
-/** 过滤掉不进菜单的项（hidden / button） */
-function visibleItems(list: MenuItem[] | undefined): MenuItem[] {
-  return (list ?? []).filter((item) => !item.meta.hidden && item.type !== "button");
-}
-
-/** 收集所有可见叶子页面（命令面板用） */
-function collectPages(list: MenuItem[], out: MenuItem[] = []): MenuItem[] {
-  for (const item of visibleItems(list)) {
-    if (item.children?.length) collectPages(item.children, out);
-    else out.push(item);
-  }
-  return out;
-}
-
-/** 所有可见叶子页面，扁平 */
-const flatMenus = computed<MenuItem[]>(() => collectPages(menuTree.value));
-
-/** 顶栏横向菜单的一级项 */
-const topMenus = computed<MenuItem[]>(() => visibleItems(menuTree.value));
-
-/** path 命中的一级项（顶栏高亮 / 混合布局取子菜单用） */
-function getActiveTop(path: string): MenuItem | undefined {
-  return topMenus.value.find((item) =>
-    item.children?.length ? path === item.path || path.startsWith(`${item.path}/`) : path === item.path,
-  );
-}
-
-/** 一级项下第一个可跳转的叶子路径 */
-function firstLeafPath(item: MenuItem): string {
-  const children = visibleItems(item.children);
-  if (children.length) {
-    for (const child of children) {
-      const path = firstLeafPath(child);
-      if (path) return path;
-    }
-    return "";
-  }
-  return item.path;
-}
-
-/** 侧栏要渲染的菜单：side = 全部一级；mix = 当前一级的子菜单 */
-function getSideMenus(path: string): MenuItem[] {
-  if (settings.value.layoutStyle !== "mix") return topMenus.value;
-  const top = getActiveTop(path);
-  return top?.children?.length ? visibleItems(top.children) : topMenus.value;
-}
-
-// ============================================================================
-// 页签
-// ============================================================================
-const tabs = ref<AppTab[]>([]);
-/** 刷新中转时临时踢出缓存的组件名 */
-const refreshExcludes = ref<string[]>([]);
-
-const cachedViews = computed(() =>
-  tabs.value
-    .filter((tab) => tab.keepAlive !== false && tab.name && !refreshExcludes.value.includes(tab.name))
-    .map((tab) => tab.name),
-);
-
-function findTab(fullPath: string) {
-  return tabs.value.find((tab) => tab.fullPath === fullPath);
-}
-
-function addTab(tab: AppTab) {
-  if (!tab.name) return;
-  const exist = findTab(tab.fullPath);
-  if (exist) {
-    exist.title = tab.title;
-    exist.keepAlive = tab.keepAlive;
-    return;
-  }
-  tabs.value.push(tab);
-}
-
-/** 关闭一个页签；返回建议跳转的路径（仅当调用方关闭的是当前页时使用） */
-function closeTab(fullPath: string): string | null {
-  const index = tabs.value.findIndex((tab) => tab.fullPath === fullPath);
-  if (index < 0) return null;
-  if (tabs.value[index].affix) return null;
-
-  const [removed] = tabs.value.splice(index, 1);
-  refreshExcludes.value = refreshExcludes.value.filter((name) => name !== removed.name);
-
-  const next = tabs.value[index] ?? tabs.value[index - 1];
-  return next?.fullPath ?? null;
-}
-
-/** 关闭其他（保留固定页签与当前页） */
-function closeOthers(fullPath: string) {
-  tabs.value = tabs.value.filter((tab) => tab.affix || tab.fullPath === fullPath);
-  refreshExcludes.value = refreshExcludes.value.filter((name) => findTab(name) !== undefined);
-}
-
-/** 关闭全部（保留固定页签）；返回建议跳转路径 */
-function closeAll(): string | null {
-  tabs.value = tabs.value.filter((tab) => tab.affix);
-  refreshExcludes.value = [];
-  return tabs.value[0]?.fullPath ?? null;
-}
-
-/** 刷新中转时暂时丢弃缓存，回填后由新实例重新进缓存 */
-function suspendCache(name: string) {
-  if (!name || refreshExcludes.value.includes(name)) return;
-  refreshExcludes.value = [...refreshExcludes.value, name];
-}
-
-function resumeCache(name: string) {
-  refreshExcludes.value = refreshExcludes.value.filter((item) => item !== name);
-}
-
-/** 按菜单里的 affix 标记补齐固定页签 */
-function ensureAffixTabs() {
-  for (const item of flatMenus.value) {
-    if (!item.meta.affix) continue;
-    if (findTab(item.path)) continue;
-    addTab({
-      path: item.path,
-      fullPath: item.path,
-      name: item.name ?? "",
-      title: item.meta.title,
-      affix: true,
-      keepAlive: item.meta.keepAlive !== false,
-    });
-  }
-}
-
-// ============================================================================
-// 主题：把设置映射到 <html> 的 class / data-* / CSS 变量
-// 色阶推导全部由 theme.scss 里的 color-mix() 完成，这里不做任何颜色运算
-// ============================================================================
-const isDark = computed(() => settings.value.theme === "dark");
-
-const transitionName = computed(() => {
-  switch (settings.value.switchPageStyle) {
-    case "fadeIn":
-      return "page-fade";
-    case "3D":
-      return "page-3d";
-    case "zoom":
-      return "page-zoom";
-    default:
-      return "";
-  }
-});
-
-function applyTheme(state: LayoutSettings) {
-  const root = document.documentElement;
-  root.classList.toggle("dark", state.theme === "dark");
-  root.dataset.layoutStyle = state.layoutStyle;
-  root.dataset.material = state.material;
-  root.dataset.density = state.density;
-  root.dataset.sidebar = state.sidebarTheme;
-  root.style.setProperty("--app-primary", state.primaryColor);
-}
-
-// 模块被 import 时立即落主题，之后随设置实时更新（immediate 的首帧早于壳渲染）
-watch(settings, (state) => applyTheme(state), { deep: true, immediate: true });
-
-// ============================================================================
-// UI 状态
-// ============================================================================
 const isMobile = useMediaQuery("(max-width: 992px)");
-const mobileMenuOpen = ref(false);
-const isSettingOpen = ref(false);
-const isCommandOpen = ref(false);
+const prefersDark = usePreferredDark();
 
-// ============================================================================
-// 动作
-// ============================================================================
-function toggleCollapse() {
-  settings.value.isCollapse = !settings.value.isCollapse;
+const isDark = computed(() => settings.theme === "dark" || (settings.theme === "auto" && prefersDark.value));
+
+const transitionName = computed(() => PAGE_TRANSITION_NAMES[settings.switchPageStyle] ?? "");
+
+const tabs = ref<AppTab[]>([
+  { path: "/dashboard", fullPath: "/dashboard", name: "dashboard", title: "仪表盘" },
+  { path: "/system/setting", fullPath: "/system/setting", name: "systemSetting", title: "系统设置" },
+  { path: "/system/user", fullPath: "/system/user", name: "systemUser", title: "用户管理" },
+  { path: "/system/user", fullPath: "/system/user?v=2", name: "systemUser", title: "角色管理" },
+  { path: "/system/user", fullPath: "/system/user?v=3", name: "systemUser", title: "权限管理" },
+  { path: "/dashboard", fullPath: "/dashboard?v=2", name: "dashboard", title: "数据看板" },
+  { path: "/dashboard", fullPath: "/dashboard?v=3", name: "dashboard", title: "实时监控" },
+  { path: "/dashboard", fullPath: "/dashboard?v=4", name: "dashboard", title: "运营报表" },
+]);
+
+const commandOpen = ref(false);
+
+function visibleMenus(list?: RouteRecordRaw[]): RouteRecordRaw[] {
+  return (list ?? []).filter((item) => !item.meta?.hidden);
 }
 
-function toggleTheme() {
-  settings.value.theme = isDark.value ? "light" : "dark";
+function getActiveTop(path: string): RouteRecordRaw | undefined {
+  return visibleMenus(settings.menuList).find((item) => (item.children?.length ? path === item.path || path.startsWith(`${item.path}/`) : path === item.path));
 }
 
-function toggleMaterial() {
-  settings.value.material = settings.value.material === "glass" ? "solid" : "glass";
+/** 当前路由所属一级模块的子菜单（混合布局下侧栏显示它） */
+function getModuleMenus(path: string): RouteRecordRaw[] {
+  return visibleMenus(getActiveTop(path)?.children);
 }
 
-function setPrimaryColor(color: string) {
-  settings.value.primaryColor = color;
+function applyTheme() {
+  const root = document.documentElement;
+  root.classList.toggle("dark", isDark.value);
+  root.dataset.layout = settings.layoutStyle;
+  root.dataset.material = settings.material;
+  root.dataset.sidebar = settings.sidebarTheme;
+  root.style.setProperty("--app-primary", settings.primaryColor);
 }
 
-function resetLayout() {
-  Object.assign(settings.value, DEFAULT_LAYOUT_STATE);
-}
+const layout = reactive({
+  ...toRefs(settings),
+  userInfo: { name: "管理员", account: "admin" } as LayoutUserInfo,
 
-/** 空菜单兜底用：把菜单数据重置回初始数据源 */
-function reloadMenus() {
-  store().resetUser();
-}
-
-function openSetting() {
-  isSettingOpen.value = true;
-}
-
-function closeSetting() {
-  isSettingOpen.value = false;
-}
-
-function openCommand() {
-  isCommandOpen.value = true;
-}
-
-function closeCommand() {
-  isCommandOpen.value = false;
-}
-
-function toggleMobileMenu() {
-  mobileMenuOpen.value = !mobileMenuOpen.value;
-}
-
-function closeMobileMenu() {
-  mobileMenuOpen.value = false;
-}
-
-// ============================================================================
-// 对外：默认导出 reactive 单体
-// settings / tabs / userInfo 等 ref、computed 会被 reactive 自动解包
-// ============================================================================
-export default reactive({
-  // 状态
-  settings,
-  userInfo,
-  menuTree,
-  flatMenus,
-  topMenus,
-  tabs,
-  cachedViews,
+  isMobile,
   isDark,
   transitionName,
-  isMobile,
-  mobileMenuOpen,
-  isSettingOpen,
-  isCommandOpen,
-  // 菜单派生
+  tabs,
+  commandOpen,
+
   getActiveTop,
-  firstLeafPath,
-  getSideMenus,
-  // 页签
-  addTab,
-  closeTab,
-  closeOthers,
-  closeAll,
-  ensureAffixTabs,
-  suspendCache,
-  resumeCache,
-  // 动作
-  toggleCollapse,
-  toggleTheme,
-  toggleMaterial,
-  setPrimaryColor,
-  resetLayout,
-  reloadMenus,
-  openSetting,
-  closeSetting,
-  openCommand,
-  closeCommand,
-  toggleMobileMenu,
-  closeMobileMenu,
+  getModuleMenus,
 });
+
+watch(() => [settings.theme, settings.primaryColor, settings.material, settings.sidebarTheme, settings.layoutStyle, isDark.value], applyTheme, { immediate: true });
+
+watch(
+  isMobile,
+  (mobile) => {
+    settings.isCollapse = mobile;
+  },
+  { immediate: true },
+);
+
+export default layout;

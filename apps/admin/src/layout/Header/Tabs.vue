@@ -1,55 +1,34 @@
 <script setup lang="ts">
-  /**
-   * 多页签
-   *
-   * 状态读写全部走 @/layout（tabs / closeTab / closeOthers / closeAll），
-   * 只在这里做跳转 —— 数据仓库不碰 router。
-   */
-  import { ElMessage } from "element-plus";
-  import layout from "@/layout";
-  import type { AppTab } from "@/layout";
-
   defineOptions({ name: "LayoutTabs" });
+
+  import { ElMessage } from "element-plus";
+  import layoutData from "@/layout";
+  import type { AppTab } from "@/layout";
 
   const route = useRoute();
   const router = useRouter();
 
   const scrollRef = ref<HTMLElement>();
+  const canLeft = ref(false);
+  const canRight = ref(false);
 
-  const activePath = computed(() => route.fullPath);
+  function isActive(tab: AppTab) {
+    return tab.fullPath === route.fullPath;
+  }
 
-  // ---- 右键菜单 ----
-  const contextVisible = ref(false);
-  const contextPos = reactive({ x: 0, y: 0 });
-  const contextTab = ref<AppTab | null>(null);
+  function tabIndex(fullPath: string) {
+    return layoutData.tabs.findIndex((item) => item.fullPath === fullPath);
+  }
 
-  const contextActions = [
-    { command: "refresh", label: "刷新当前页" },
-    { command: "close", label: "关闭" },
-    { command: "closeOthers", label: "关闭其他" },
-    { command: "closeAll", label: "关闭全部" },
-  ];
+  function updateScrollState() {
+    const el = scrollRef.value;
+    if (!el) return;
+    canLeft.value = el.scrollLeft > 2;
+    canRight.value = el.scrollLeft + el.clientWidth < el.scrollWidth - 2;
+  }
 
   function go(tab: AppTab) {
-    if (tab.fullPath !== route.fullPath) router.push(tab.fullPath);
-  }
-
-  function close(tab: AppTab) {
-    if (tab.affix) return;
-    const wasActive = tab.fullPath === route.fullPath;
-    const next = layout.closeTab(tab.fullPath);
-    if (wasActive && next) router.push(next);
-  }
-
-  function openContextMenu(event: MouseEvent, tab: AppTab) {
-    contextTab.value = tab;
-    contextPos.x = event.clientX;
-    contextPos.y = event.clientY;
-    contextVisible.value = true;
-  }
-
-  function hideContextMenu() {
-    contextVisible.value = false;
+    if (!isActive(tab)) router.push(tab.fullPath);
   }
 
   function onWheel(event: WheelEvent) {
@@ -57,108 +36,228 @@
     scrollRef.value.scrollLeft += event.deltaY;
   }
 
-  /**
-   * 刷新：先让 keep-alive 丢掉这个页面的实例，再走 /redirect 中转回来，
-   * 回来时是新实例重新进缓存 —— 页签保留，页面状态重置。
-   */
-  async function refresh(tab: AppTab | null) {
-    if (!tab) return;
-    layout.suspendCache(tab.name);
-    await nextTick();
+  function scrollStep(direction: number) {
+    scrollRef.value?.scrollBy({ left: direction * 220, behavior: "smooth" });
+  }
+
+  function ensureActive(tab: AppTab) {
+    const stillExists = layoutData.tabs.some((item) => item.fullPath === route.fullPath);
+    if (!stillExists) router.push(tab.fullPath);
+  }
+
+  async function refresh(tab: AppTab) {
     await router.replace({ path: "/redirect", query: { to: tab.fullPath } });
-    layout.resumeCache(tab.name);
   }
 
-  async function onContextCommand(command: string) {
-    const tab = contextTab.value;
-    hideContextMenu();
-    if (!tab) return;
-
-    if (command === "refresh") {
-      await refresh(tab);
-      return;
-    }
-    if (command === "close") {
-      close(tab);
-      return;
-    }
-    if (command === "closeOthers") {
-      layout.closeOthers(tab.fullPath);
-      if (route.fullPath !== tab.fullPath) router.push(tab.fullPath);
-      return;
-    }
-    if (command === "closeAll") {
-      const next = layout.closeAll();
-      if (next) router.push(next);
-      ElMessage.success("已关闭全部页签");
+  async function copyPath(tab: AppTab) {
+    const url = `${window.location.origin}${tab.fullPath}`;
+    try {
+      await navigator.clipboard.writeText(url);
+      ElMessage.success("已复制页面路径");
+    } catch {
+      ElMessage.warning(url);
     }
   }
 
-  // 当前页签滚进可视区
+  async function onCommand(command: string | number | object, tab: AppTab) {
+    switch (command) {
+      case "refresh":
+        await refresh(tab);
+        break;
+      case "close": {
+        const index = tabIndex(tab.fullPath);
+        if (index < 0) break;
+
+        const wasActive = isActive(tab);
+        layoutData.tabs.splice(index, 1);
+        // 关掉当前页签时优先切到右边那个，没有就往左退一格
+        const next = layoutData.tabs[index] ?? layoutData.tabs[index - 1];
+        if (wasActive && next) router.push(next.fullPath);
+        break;
+      }
+      case "closeOthers":
+        layoutData.tabs = layoutData.tabs.filter((item) => item.fullPath === tab.fullPath);
+        if (!isActive(tab)) router.push(tab.fullPath);
+        break;
+      case "closeLeft": {
+        const index = tabIndex(tab.fullPath);
+        if (index > 0) layoutData.tabs.splice(0, index);
+        ensureActive(tab);
+        break;
+      }
+      case "closeRight": {
+        const index = tabIndex(tab.fullPath);
+        if (index >= 0) layoutData.tabs.splice(index + 1);
+        ensureActive(tab);
+        break;
+      }
+      case "closeAll": {
+        const first = layoutData.tabs[0];
+        layoutData.tabs = [];
+        if (first) router.push(first.fullPath);
+        break;
+      }
+      case "copy":
+        await copyPath(tab);
+        break;
+    }
+    await nextTick();
+    updateScrollState();
+  }
+
   watch(
-    activePath,
+    () => route.fullPath,
     async () => {
       await nextTick();
-      const el = scrollRef.value?.querySelector<HTMLElement>('[data-active="true"]');
-      el?.scrollIntoView({ block: "nearest", inline: "nearest" });
+      scrollRef.value?.querySelector<HTMLElement>(".tab.is-active")?.scrollIntoView({ block: "nearest", inline: "nearest" });
+      updateScrollState();
     },
     { immediate: true },
   );
 
-  useEventListener(window, "click", hideContextMenu);
+  watch(
+    () => layoutData.tabs.length,
+    async () => {
+      await nextTick();
+      updateScrollState();
+    },
+  );
+
+  onMounted(updateScrollState);
+  useEventListener(window, "resize", updateScrollState);
 </script>
 
 <template>
-  <div class="relative flex h-[var(--app-tabs-h)] items-center border-t border-glass-border px-2">
-    <div ref="scrollRef" class="app-scroll-none flex min-w-0 flex-1 items-center gap-1.5 overflow-x-auto py-1" @wheel.prevent="onWheel">
-      <div
-        v-for="tab in layout.tabs"
-        :key="tab.fullPath"
-        :data-active="tab.fullPath === activePath"
-        class="tab-item group flex shrink-0 cursor-pointer items-center gap-1.5 rounded-[999px] border border-transparent px-3 py-[3px] text-[12.5px] transition-all duration-200"
-        :class="
-          tab.fullPath === activePath
-            ? 'border-[color-mix(in_srgb,var(--app-primary)_45%,transparent)] bg-[color-mix(in_srgb,var(--app-primary)_12%,transparent)] font-medium text-primary'
-            : 'text-ink-2 hover:bg-[color-mix(in_srgb,var(--app-primary)_7%,transparent)] hover:text-ink'
-        "
-        @click="go(tab)"
-        @contextmenu.prevent.stop="openContextMenu($event, tab)"
-      >
-        <span v-if="tab.affix" class="size-1.5 shrink-0 rounded-full bg-primary" />
-        <span class="max-w-[140px] truncate">{{ tab.title }}</span>
-        <span
-          v-if="!tab.affix"
-          class="tab-close grid size-4 shrink-0 place-items-center rounded-full text-[13px] leading-none opacity-0 transition-opacity group-hover:opacity-100"
-          :class="{ 'opacity-100': tab.fullPath === activePath }"
-          @click.stop="close(tab)"
-        >
-          ×
-        </span>
+  <div class="tabs">
+    <button v-if="canLeft" type="button" class="app-icon-btn is-sm tabs-arrow" title="向左滚动" @click="scrollStep(-1)">
+      <MyIcon name="ArrowLeft" :size="13" />
+    </button>
+
+    <div ref="scrollRef" class="tabs-scroll app-scroll-none" @wheel.prevent="onWheel" @scroll="updateScrollState">
+      <div v-for="tab in layoutData.tabs" :key="tab.fullPath" class="tab" :class="{ 'is-active': isActive(tab) }" :title="tab.title" @click="go(tab)">
+        <span class="tab-title">{{ tab.title }}</span>
+
+        <el-dropdown trigger="hover" placement="bottom-end" :show-timeout="80" :hide-timeout="80" @command="onCommand($event, tab)">
+          <span class="tab-action" title="更多操作" @click.stop>
+            <MyIcon name="ArrowDown" :size="11" />
+          </span>
+
+          <template #dropdown>
+            <el-dropdown-menu>
+              <el-dropdown-item command="refresh" :disabled="!isActive(tab)">刷新页面</el-dropdown-item>
+              <el-dropdown-item command="close">关闭当前</el-dropdown-item>
+              <el-dropdown-item command="closeOthers">关闭其他</el-dropdown-item>
+              <el-dropdown-item command="closeLeft" divided>关闭左侧</el-dropdown-item>
+              <el-dropdown-item command="closeRight">关闭右侧</el-dropdown-item>
+              <el-dropdown-item command="closeAll">关闭全部</el-dropdown-item>
+              <el-dropdown-item command="copy" divided>复制页面路径</el-dropdown-item>
+            </el-dropdown-menu>
+          </template>
+        </el-dropdown>
       </div>
     </div>
 
-    <!-- 右键菜单 -->
-    <div
-      v-if="contextVisible"
-      class="app-card fixed z-[3000] w-[136px] overflow-hidden p-1 text-[13px]"
-      :style="{ left: `${contextPos.x}px`, top: `${contextPos.y}px` }"
-      @click.stop
-    >
-      <button
-        v-for="action in contextActions"
-        :key="action.command"
-        type="button"
-        class="block w-full cursor-pointer rounded-[8px] border-0 bg-transparent px-2.5 py-1.5 text-left text-ink-2 transition-colors hover:bg-[color-mix(in_srgb,var(--app-primary)_10%,transparent)] hover:text-primary"
-        @click="onContextCommand(action.command)"
-      >
-        {{ action.label }}
-      </button>
-    </div>
+    <button v-if="canRight" type="button" class="app-icon-btn is-sm tabs-arrow" title="向右滚动" @click="scrollStep(1)">
+      <MyIcon name="ArrowRight" :size="13" />
+    </button>
   </div>
 </template>
 
 <style lang="scss" scoped>
-  .tab-item:hover .tab-close {
-    background-color: color-mix(in srgb, var(--app-text-3) 18%, transparent);
+  .tabs {
+    display: flex;
+    flex-shrink: 0;
+    align-items: center;
+    gap: 4px;
+    height: var(--app-tabs-h);
+    padding: 0 10px;
+    border-top: 1px solid var(--app-glass-border);
+    background-color: color-mix(in srgb, var(--app-primary) 5%, transparent);
+  }
+
+  .tabs .tabs-arrow {
+    width: 20px;
+    height: 20px;
+    border-radius: 6px;
+  }
+
+  .tabs-scroll {
+    display: flex;
+    flex: 1;
+    align-items: center;
+    gap: 4px;
+    min-width: 0;
+    overflow-x: auto;
+    overflow-y: hidden;
+  }
+
+  .tab {
+    display: inline-flex;
+    flex-shrink: 0;
+    align-items: center;
+    gap: 3px;
+    height: 22px;
+    max-width: 148px;
+    padding: 0 5px 0 7px;
+    border: 1px solid transparent;
+    border-radius: 6px;
+    background-color: transparent;
+    color: var(--app-text-2);
+    font-size: 12px;
+    cursor: pointer;
+    transition:
+      background-color var(--app-dur) var(--app-ease),
+      color var(--app-dur) var(--app-ease),
+      border-color var(--app-dur) var(--app-ease),
+      box-shadow var(--app-dur) var(--app-ease);
+
+    &:hover {
+      color: var(--app-text);
+      background-color: color-mix(in srgb, var(--app-primary) 7%, transparent);
+    }
+
+    &.is-active {
+      color: var(--app-primary);
+      font-weight: 600;
+      border-color: color-mix(in srgb, var(--app-primary) 26%, transparent);
+      background-color: var(--app-surface);
+      box-shadow: 0 2px 8px color-mix(in srgb, var(--app-primary) 16%, transparent);
+    }
+  }
+
+  .tab-title {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .tab :deep(.el-dropdown) {
+    display: inline-flex;
+    align-items: center;
+  }
+
+  .tab-action {
+    display: grid;
+    flex-shrink: 0;
+    place-items: center;
+    width: 14px;
+    height: 14px;
+    border-radius: 4px;
+    color: var(--app-text-3);
+    opacity: 0;
+    transition:
+      opacity var(--app-dur) var(--app-ease),
+      background-color var(--app-dur) var(--app-ease),
+      color var(--app-dur) var(--app-ease);
+
+    &:hover {
+      color: var(--app-primary);
+      background-color: color-mix(in srgb, var(--app-primary) 14%, transparent);
+    }
+
+    .tab:hover &,
+    .tab.is-active & {
+      opacity: 1;
+    }
   }
 </style>
