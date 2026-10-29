@@ -14,7 +14,10 @@
 
   // 顶部布局，以及「混合布局里当前模块没有二级菜单」时，品牌标识挂在顶栏上
   const showLogo = computed(
-    () => layoutData.isShowLogo && !layoutData.isMobile && (layoutData.layoutStyle === "top" || (layoutData.layoutStyle === "mix" && layoutData.getModuleMenus(route.path).length === 0)),
+    () =>
+      layoutData.isShowLogo &&
+      !layoutData.isMobile &&
+      (layoutData.layoutStyle === "top" || (layoutData.layoutStyle === "mix" && layoutData.getModuleMenus(route.path).length === 0)),
   );
 </script>
 

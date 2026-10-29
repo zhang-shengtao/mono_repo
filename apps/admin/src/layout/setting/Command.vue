@@ -18,9 +18,9 @@
   const activeIndex = ref(0);
   const inputRef = ref<HTMLInputElement>();
 
+  // menuList 已在 pinia/user.ts 的 menuArr 里递归剔除 hidden，这里只做拍平
   function flattenMenus(list: RouteRecordRaw[], out: RouteRecordRaw[] = []): RouteRecordRaw[] {
     for (const item of list) {
-      if (item.meta?.hidden) continue;
       if (item.children?.length) flattenMenus(item.children, out);
       else out.push(item);
     }

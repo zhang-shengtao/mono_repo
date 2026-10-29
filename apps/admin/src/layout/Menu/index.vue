@@ -10,8 +10,9 @@
   const collapsed = computed(() => !layoutData.isMobile && layoutData.isCollapse);
 
   // 混合布局的侧栏只放当前一级模块的子菜单，模块没有子菜单时退回完整菜单
+  // menuList 已在 pinia/user.ts 的 menuArr 里剔除 hidden，无需再过滤
   const menus = computed(() => {
-    const all = layoutData.menuList.filter((item) => !item.meta?.hidden);
+    const all = layoutData.menuList;
     if (layoutData.layoutStyle !== "mix") return all;
 
     const moduleMenus = layoutData.getModuleMenus(route.path);

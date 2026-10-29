@@ -1,6 +1,5 @@
 <script setup lang="ts">
   defineOptions({ name: "Layout" });
-
   import { userPinia } from "@/pinia";
   import Header from "./Header/index.vue";
   import MainApp from "./MainApp/index.vue";
@@ -8,22 +7,17 @@
   import Command from "./setting/Command.vue";
   import SettingPanel from "./setting/index.vue";
   import layoutData from "@/layout";
-
   const userStore = userPinia();
-
   layoutData.userInfo = userStore.userInfo;
-
+  layoutData.menuList = userStore.menuList;
   const route = useRoute();
 
   watch(
     () => route.fullPath,
     () => {
-      // 移动端点菜单跳转后自动收起侧栏
       if (layoutData.isMobile) layoutData.isCollapse = true;
-
       const title = route.meta?.title;
       if (!title || !route.name || route.meta?.hidden) return;
-
       const tab = { path: route.path, fullPath: route.fullPath, name: String(route.name), title: String(title) };
       const exist = layoutData.tabs.find((item) => item.fullPath === tab.fullPath);
       if (exist) exist.title = tab.title;
@@ -31,17 +25,13 @@
     },
     { immediate: true },
   );
-
-  // 混合布局：当前一级模块没有子菜单时，侧栏没有内容可放，直接收起（移动端除外）
   const isMixChildless = computed(() => layoutData.layoutStyle === "mix" && !layoutData.isMobile && layoutData.getModuleMenus(route.path).length === 0);
-
   const rootClass = computed(() => ({
     "is-collapse": layoutData.isCollapse,
     "is-mobile": layoutData.isMobile,
     "is-no-tabs": !layoutData.isShowTabs,
     "is-no-side": isMixChildless.value,
   }));
-
   const watermark = ref("");
 </script>
 
@@ -69,7 +59,6 @@
   .layout {
     --side-w: var(--app-side-w);
     --tabs-h: var(--app-tabs-h);
-
     position: relative;
     width: 100%;
     height: 100vh;
@@ -77,28 +66,22 @@
     overflow: hidden;
     isolation: isolate;
     background-color: var(--app-bg);
-
     &.is-collapse {
       --side-w: var(--app-side-w-collapsed);
     }
-
     &.is-no-tabs {
       --tabs-h: 0px;
     }
-
     &[data-layout="top"] {
       --side-w: 0px;
     }
-
     &.is-no-side {
       --side-w: 0px;
     }
-
     &.is-mobile {
       --side-w: 0px;
     }
   }
-
   .layout-aurora {
     position: absolute;
     inset: 0;
@@ -107,7 +90,6 @@
     pointer-events: none;
     background-color: var(--app-bg);
     background-image: radial-gradient(circle at 82% 18%, var(--app-aurora-3), transparent 55%);
-
     &::before,
     &::after {
       content: "";
@@ -117,14 +99,12 @@
       border-radius: 50%;
       will-change: transform;
     }
-
     &::before {
       top: -24vw;
       left: -14vw;
       background: radial-gradient(circle at center, var(--app-aurora-1), transparent 68%);
       animation: aurora-a 16s var(--app-ease) infinite alternate;
     }
-
     &::after {
       right: -20vw;
       bottom: -26vw;
@@ -132,7 +112,6 @@
       animation: aurora-b 20s var(--app-ease) infinite alternate;
     }
   }
-
   @keyframes aurora-a {
     from {
       transform: translate3d(0, 0, 0) scale(1);
@@ -141,7 +120,6 @@
       transform: translate3d(6vw, 4vw, 0) scale(1.12);
     }
   }
-
   @keyframes aurora-b {
     from {
       transform: translate3d(0, 0, 0) scale(1.06);
@@ -150,7 +128,6 @@
       transform: translate3d(-5vw, -5vw, 0) scale(1);
     }
   }
-
   .layout-side {
     position: absolute;
     top: 0;
@@ -170,8 +147,6 @@
       opacity 300ms var(--app-ease);
     will-change: width, transform;
   }
-
-  /* 右缘光边：用渐变压成「上亮下淡」的 1px，不再是整条生硬的白线 */
   .layout-side::after {
     content: "";
     position: absolute;
@@ -188,8 +163,6 @@
       color-mix(in srgb, var(--app-sidebar-border) 40%, transparent) 100%
     );
   }
-
-  /* 玻璃背后缓慢流动的光：z-index:-1 落在底色之上、菜单之下 */
   .layout-side::before {
     content: "";
     position: absolute;
@@ -202,24 +175,20 @@
     animation: sidebar-glow-drift 26s var(--app-ease) infinite alternate;
     will-change: transform;
   }
-
   @keyframes sidebar-glow-drift {
     from {
       transform: translate3d(-3%, -2%, 0) scale(1.02);
     }
-
     to {
       transform: translate3d(7%, 6%, 0) scale(1.18);
     }
   }
-
   .layout[data-layout="top"] .layout-side {
     width: var(--app-side-w);
     opacity: 0;
     pointer-events: none;
     transform: translateX(-100%);
   }
-
   .layout-head {
     position: absolute;
     top: 0;
@@ -237,7 +206,6 @@
       height 300ms var(--app-ease);
     will-change: left, height;
   }
-
   .layout-main {
     position: absolute;
     top: calc(var(--app-header-h) + var(--tabs-h));
@@ -251,7 +219,6 @@
       left 300ms var(--app-ease);
     will-change: top, left;
   }
-
   .layout-mask {
     position: absolute;
     inset: 0;
@@ -263,7 +230,6 @@
     -webkit-backdrop-filter: blur(2px);
     transition: opacity 260ms var(--app-ease);
   }
-
   .layout.is-mobile .layout-side {
     z-index: 40;
     width: var(--app-side-w);
@@ -271,13 +237,11 @@
     pointer-events: none;
     transform: translateX(-100%);
   }
-
   .layout.is-mobile:not(.is-collapse) .layout-side {
     pointer-events: auto;
     box-shadow: var(--app-shadow-hover);
     transform: translateX(0);
   }
-
   .layout.is-mobile:not(.is-collapse) .layout-mask {
     opacity: 1;
     pointer-events: auto;

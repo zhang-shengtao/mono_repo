@@ -1,24 +1,16 @@
 <script setup lang="ts">
   defineOptions({ name: "LayoutSetting" });
-
   import { DEFAULT_LAYOUT_SETTINGS, LAYOUT_STYLE_OPTIONS, PAGE_STYLE_OPTIONS, PRIMARY_PRESETS, THEME_OPTIONS, default as layoutData } from "@/layout";
   import type { SwitchPageStyle } from "@/layout";
 
   function onColorChange(value: string | null) {
     if (value) layoutData.primaryColor = value;
   }
-
-  /** 恢复默认外观；移动端默认收起侧栏 */
   function resetLayout() {
     Object.assign(layoutData, DEFAULT_LAYOUT_SETTINGS, { isCollapse: layoutData.isMobile });
   }
 
-  /**
-   * 每个动效卡片的预览是一段无限循环的 CSS 动画；
-   * 点击时把 key 加一让节点重建，动画立刻从头再播一次。
-   */
   const replayKey = reactive<Record<string, number>>({});
-
   function selectPageStyle(value: SwitchPageStyle) {
     layoutData.switchPageStyle = value;
     replayKey[value] = (replayKey[value] ?? 0) + 1;
@@ -48,7 +40,6 @@
           </button>
         </div>
       </section>
-
       <section class="setting-group">
         <p class="setting-label">主题模式</p>
         <div class="setting-chips">
@@ -58,7 +49,6 @@
           </button>
         </div>
       </section>
-
       <section class="setting-group">
         <p class="setting-label">侧栏明暗</p>
         <div class="setting-chips">
@@ -66,7 +56,6 @@
           <button type="button" class="chip" :class="{ 'is-active': layoutData.sidebarTheme === 'dark' }" @click="layoutData.sidebarTheme = 'dark'">深色</button>
         </div>
       </section>
-
       <section class="setting-group">
         <p class="setting-label">主题色</p>
         <div class="setting-colors">
@@ -83,7 +72,6 @@
           <el-color-picker :model-value="layoutData.primaryColor" size="small" @change="onColorChange" />
         </div>
       </section>
-
       <section class="setting-group">
         <p class="setting-label">视觉材质</p>
         <div class="setting-chips">
@@ -91,7 +79,6 @@
           <button type="button" class="chip" :class="{ 'is-active': layoutData.material === 'solid' }" @click="layoutData.material = 'solid'">纯色</button>
         </div>
       </section>
-
       <section class="setting-group">
         <div class="setting-head">
           <p class="setting-label">页面切换动效</p>
@@ -120,7 +107,6 @@
           </button>
         </div>
       </section>
-
       <section class="setting-group">
         <p class="setting-label">元素显示</p>
         <div class="setting-switches">
@@ -142,9 +128,7 @@
           </div>
         </div>
       </section>
-
       <el-divider class="setting-divider" />
-
       <el-button class="setting-reset" @click="resetLayout">恢复默认</el-button>
       <p class="setting-tip">设置会自动保存在本地</p>
     </div>

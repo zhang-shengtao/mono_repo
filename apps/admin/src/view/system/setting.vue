@@ -3,7 +3,6 @@
    * 系统设置占位页（自带页头骨架）
    * name 必须与 route.name 一致，否则 keep-alive 静默失效。
    */
-  defineOptions({ name: "systemSetting" });
 </script>
 
 <template>

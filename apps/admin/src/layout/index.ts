@@ -1,4 +1,4 @@
-import type { RouteRecordRaw } from "vue-router";
+import type { RouteRecordRaw } from "@/router";
 
 export type LayoutStyle = "side" | "top" | "mix";
 export type SwitchPageStyle = "zoom" | "fadeIn" | "slide" | "rise" | "blur" | "3D" | "flip" | "reveal" | "none";
@@ -71,139 +71,8 @@ const PAGE_TRANSITION_NAMES: Record<SwitchPageStyle, string> = {
   none: "",
 };
 
-const fakeMenus: RouteRecordRaw[] = [
-  {
-    path: "/dashboard",
-    name: "dashboard",
-    redirect: "/dashboard",
-    meta: { title: "仪表盘", icon: "Odometer", isScreen: true, target: true },
-  },
-  {
-    path: "/system",
-    name: "system",
-    redirect: "/system/user",
-    meta: { title: "系统管理", icon: "Setting" },
-    children: [
-      {
-        path: "/system/user",
-        name: "systemUser",
-        redirect: "/system/user",
-        meta: { title: "用户管理", icon: "User" },
-      },
-      {
-        path: "https://element-plus.org",
-        name: "external",
-        redirect: "/dashboard",
-        meta: { title: "外部链接", icon: "Link" },
-      },
-      {
-        path: "/system/role",
-        name: "systemRole",
-        redirect: "/system/user",
-        meta: { title: "角色管理", icon: "Avatar" },
-      },
-      {
-        path: "/system/permission",
-        name: "systemPermission",
-        redirect: "/system/user",
-        meta: { title: "权限管理", icon: "Lock" },
-      },
-      {
-        path: "/system/setting",
-        name: "systemSetting",
-        redirect: "/system/setting",
-        meta: { title: "系统设置", icon: "Tools" },
-        children: [
-          {
-            path: "/system/setting/base",
-            name: "systemSettingBase",
-            redirect: "/system/setting",
-            meta: { title: "基础配置", icon: "Operation" },
-          },
-          {
-            path: "/system/setting/secure",
-            name: "systemSettingSecure",
-            redirect: "/system/setting",
-            meta: { title: "安全策略", icon: "Key" },
-          },
-        ],
-      },
-    ],
-  },
-  {
-    path: "/content",
-    name: "content",
-    redirect: "/dashboard",
-    meta: { title: "内容管理", icon: "Document" },
-    children: [
-      {
-        path: "/content/article",
-        name: "contentArticle",
-        redirect: "/dashboard",
-        meta: { title: "文章管理", icon: "Notebook" },
-      },
-      {
-        path: "/content/category",
-        name: "contentCategory",
-        redirect: "/dashboard",
-        meta: { title: "分类管理", icon: "Files" },
-      },
-      {
-        path: "/content/tag",
-        name: "contentTag",
-        redirect: "/dashboard",
-        meta: { title: "标签管理", icon: "PriceTag" },
-      },
-    ],
-  },
-  {
-    path: "/chart",
-    name: "chart",
-    redirect: "/dashboard",
-    meta: { title: "数据可视化", icon: "DataLine" },
-    children: [
-      {
-        path: "/chart/pie",
-        name: "chartPie",
-        redirect: "/dashboard",
-        meta: { title: "饼图", icon: "PieChart" },
-      },
-      {
-        path: "/chart/trend",
-        name: "chartTrend",
-        redirect: "/dashboard",
-        meta: { title: "趋势分析", icon: "TrendCharts" },
-      },
-    ],
-  },
-  {
-    path: "/monitor",
-    name: "monitor",
-    redirect: "/dashboard",
-    meta: { title: "系统监控", icon: "Monitor" },
-  },
-  {
-    path: "/log",
-    name: "log",
-    redirect: "/dashboard",
-    meta: { title: "日志中心", icon: "Tickets" },
-  },
-  {
-    path: "/component",
-    name: "component",
-    redirect: "/dashboard",
-    meta: { title: "组件示例", icon: "Grid" },
-  },
-  {
-    path: "https://element-plus.org",
-    name: "external",
-    redirect: "/dashboard",
-    meta: { title: "外部链接", icon: "Link" },
-  },
-];
-
 export const DEFAULT_LAYOUT_SETTINGS: LayoutSettings = {
-  menuList: fakeMenus,
+  menuList: [],
   isCollapse: false,
   theme: "light",
   layoutStyle: "side",
@@ -226,30 +95,16 @@ const isDark = computed(() => settings.theme === "dark" || (settings.theme === "
 
 const transitionName = computed(() => PAGE_TRANSITION_NAMES[settings.switchPageStyle] ?? "");
 
-const tabs = ref<AppTab[]>([
-  { path: "/dashboard", fullPath: "/dashboard", name: "dashboard", title: "仪表盘" },
-  { path: "/system/setting", fullPath: "/system/setting", name: "systemSetting", title: "系统设置" },
-  { path: "/system/user", fullPath: "/system/user", name: "systemUser", title: "用户管理" },
-  { path: "/system/user", fullPath: "/system/user?v=2", name: "systemUser", title: "角色管理" },
-  { path: "/system/user", fullPath: "/system/user?v=3", name: "systemUser", title: "权限管理" },
-  { path: "/dashboard", fullPath: "/dashboard?v=2", name: "dashboard", title: "数据看板" },
-  { path: "/dashboard", fullPath: "/dashboard?v=3", name: "dashboard", title: "实时监控" },
-  { path: "/dashboard", fullPath: "/dashboard?v=4", name: "dashboard", title: "运营报表" },
-]);
+const tabs = ref<AppTab[]>([]);
 
 const commandOpen = ref(false);
 
-function visibleMenus(list?: RouteRecordRaw[]): RouteRecordRaw[] {
-  return (list ?? []).filter((item) => !item.meta?.hidden);
-}
-
 function getActiveTop(path: string): RouteRecordRaw | undefined {
-  return visibleMenus(settings.menuList).find((item) => (item.children?.length ? path === item.path || path.startsWith(`${item.path}/`) : path === item.path));
+  return settings.menuList.find((item) => (item.children?.length ? path === item.path || path.startsWith(`${item.path}/`) : path === item.path));
 }
 
-/** 当前路由所属一级模块的子菜单（混合布局下侧栏显示它） */
 function getModuleMenus(path: string): RouteRecordRaw[] {
-  return visibleMenus(getActiveTop(path)?.children);
+  return getActiveTop(path)?.children ?? [];
 }
 
 function applyTheme() {

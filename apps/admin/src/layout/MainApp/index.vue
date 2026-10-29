@@ -1,9 +1,15 @@
 <script setup lang="ts">
   defineOptions({ name: "MainApp" });
+
   import layoutData from "@/layout";
 
+  const key = ref("");
   const loading = ref(false);
   const keepAlives = reactive<string[]>([]);
+
+  function myKey(path: string, key: string) {
+    return path;
+  }
 </script>
 
 <template>
@@ -11,7 +17,7 @@
     <router-view #="{ Component, route }">
       <transition :name="layoutData.transitionName" mode="out-in">
         <keep-alive :include="keepAlives">
-          <component :is="Component" :key="route.path" />
+          <component :is="Component" :key="myKey(route.path, key)" />
         </keep-alive>
       </transition>
     </router-view>

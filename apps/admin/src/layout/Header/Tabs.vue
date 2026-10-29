@@ -1,10 +1,7 @@
 <script setup lang="ts">
   defineOptions({ name: "LayoutTabs" });
 
-  import { ElMessage } from "element-plus";
-  import layoutData from "@/layout";
-  import type { AppTab } from "@/layout";
-
+  import layoutData, { type AppTab } from "@/layout";
   const route = useRoute();
   const router = useRouter();
 

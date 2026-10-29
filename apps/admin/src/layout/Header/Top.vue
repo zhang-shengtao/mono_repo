@@ -3,12 +3,12 @@
 
   import layoutData from "@/layout";
   import MenuItem from "../Menu/MenuItem.vue";
-  import type { RouteRecordRaw } from "vue-router";
+  import type { RouteRecordRaw } from "@/router";
 
   const route = useRoute();
   const router = useRouter();
 
-  const menus = computed(() => layoutData.menuList.filter((item) => !item.meta?.hidden));
+  const menus = computed(() => layoutData.menuList);
 
   const activePath = computed(() => layoutData.getActiveTop(route.path)?.path ?? route.path);
 
@@ -17,10 +17,9 @@
   let closeTimer: ReturnType<typeof setTimeout> | undefined;
 
   function childrenOf(item: RouteRecordRaw) {
-    return (item.children ?? []).filter((child) => !child.meta?.hidden);
+    return item.children ?? [];
   }
 
-  /** 一级菜单点下去要跳到它下面第一个可见叶子菜单 */
   function firstLeafPath(item: RouteRecordRaw): string {
     const children = childrenOf(item);
     if (children.length) {
