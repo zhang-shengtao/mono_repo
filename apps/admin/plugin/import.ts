@@ -5,14 +5,14 @@ import { ElementPlusResolver } from "unplugin-vue-components/resolvers";
 export default function () {
   return [
     Components({
-      resolvers: [ElementPlusResolver()],
+      resolvers: [ElementPlusResolver({ importStyle: false })],
       include: [/\.vue$/, /\.vue\?vue/, /\.jsx$/],
       dts: "components.d.ts",
     }),
     AutoImport({
       dts: "auto-imports.d.ts",
       imports: ["vue-router", "vue", "pinia", "@vueuse/core"],
-      resolvers: [ElementPlusResolver()],
+      resolvers: [ElementPlusResolver({ importStyle: false })],
     }),
   ];
 }

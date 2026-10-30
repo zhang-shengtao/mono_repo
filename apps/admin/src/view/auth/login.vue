@@ -99,15 +99,15 @@
 
         <ul class="brand-list">
           <li>
-            <MyIcon name="Lock" :size="15" />
+            <my-icon name="Lock" :size="15" />
             <span>统一鉴权与权限控制</span>
           </li>
           <li>
-            <MyIcon name="Grid" :size="15" />
+            <my-icon name="Grid" :size="15" />
             <span>三种布局随时切换</span>
           </li>
           <li>
-            <MyIcon name="MagicStick" :size="15" />
+            <my-icon name="MagicStick" :size="15" />
             <span>玻璃质感与主题联动</span>
           </li>
         </ul>
@@ -124,7 +124,7 @@
         <div class="field">
           <label class="label" for="login-account">账号</label>
           <div class="control" :class="{ 'is-error': error === '请输入账号' }">
-            <MyIcon name="User" :size="16" />
+            <my-icon name="User" :size="16" />
             <input
               id="login-account"
               v-model.trim="form.account"
@@ -142,7 +142,7 @@
         <div class="field">
           <label class="label" for="login-password">密码</label>
           <div class="control" :class="{ 'is-error': error === '请输入密码' }">
-            <MyIcon name="Lock" :size="16" />
+            <my-icon name="Lock" :size="16" />
             <input
               id="login-password"
               v-model="form.password"
@@ -152,27 +152,16 @@
               placeholder="请输入密码"
               autocomplete="current-password"
             />
-            <button
-              type="button"
-              class="peek"
-              :title="showPassword ? '隐藏密码' : '显示密码'"
-              @click="showPassword = !showPassword"
-            >
-              <MyIcon :name="showPassword ? 'View' : 'Hide'" :size="15" />
+            <button type="button" class="peek" :title="showPassword ? '隐藏密码' : '显示密码'" @click="showPassword = !showPassword">
+              <my-icon :name="showPassword ? 'View' : 'Hide'" :size="15" />
             </button>
           </div>
         </div>
 
         <div class="row">
-          <button
-            type="button"
-            class="remember"
-            :class="{ 'is-on': form.remember }"
-            title="勾选后由浏览器提示保存账号密码"
-            @click="toggleRemember"
-          >
+          <button type="button" class="remember" :class="{ 'is-on': form.remember }" title="勾选后由浏览器提示保存账号密码" @click="toggleRemember">
             <span class="tick">
-              <MyIcon v-if="form.remember" name="Check" :size="10" />
+              <my-icon v-if="form.remember" name="Check" :size="10" />
             </span>
             <span>记住账号</span>
           </button>

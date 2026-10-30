@@ -3,6 +3,7 @@ import "virtual:svg-icons-register";
 import "element-plus/dist/index.css";
 import "element-plus/theme-chalk/dark/css-vars.css";
 import "./assets/global.scss";
+import "./layout";
 
 import directive from "./directive";
 import router from "./router";

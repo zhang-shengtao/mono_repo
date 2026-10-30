@@ -3,7 +3,7 @@ import "vue-router";
 declare module "vue-router" {
   interface RouteMeta {
     title?: string; /** 页签 / 面包屑 / 菜单文字*/
-    icon?: string; /** MyIcon 名称 */
+    icon?: string; /** my-icon 名称 */
     hidden?: boolean; /** 不进菜单 / 不进页签 */
     keepAlive?: boolean; /** 是否开启 keep-alive 缓存，默认 true */
     isScreen?: boolean; /** 页面占满内容区 */

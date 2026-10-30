@@ -43,8 +43,15 @@
       <section class="setting-group">
         <p class="setting-label">主题模式</p>
         <div class="setting-chips">
-          <button v-for="item in THEME_OPTIONS" :key="item.value" type="button" class="chip" :class="{ 'is-active': layoutData.theme === item.value }" @click="layoutData.theme = item.value">
-            <MyIcon :name="item.icon" :size="15" />
+          <button
+            v-for="item in THEME_OPTIONS"
+            :key="item.value"
+            type="button"
+            class="chip"
+            :class="{ 'is-active': layoutData.theme === item.value }"
+            @click="layoutData.theme = item.value"
+          >
+            <my-icon :name="item.icon" :size="15" />
             <span>{{ item.label }}</span>
           </button>
         </div>
@@ -642,6 +649,47 @@
       box-shadow:
         0 0 0 2px var(--app-surface),
         0 0 0 4px var(--swatch);
+    }
+  }
+
+  /* el-color-picker 默认触发器是「4px 圆角方块 + 1px 灰描边 + 4px 内边距」，
+     里面再套一层带描边和 8px 圆角的 __color，右下还压一个白色向下箭头图标，
+     和左边 24px 的圆形色板完全不是一个形状。这里把它改成同款正圆：
+     去掉描边和内边距，色块铺满并裁圆，隐藏箭头图标，hover 缩放保持一致 */
+  .setting-colors :deep(.el-color-picker) {
+    width: 24px;
+    height: 24px;
+    line-height: 0;
+
+    .el-color-picker__trigger {
+      width: 24px;
+      height: 24px;
+      padding: 0;
+      border: 0;
+      border-radius: 50%;
+      background: transparent;
+      transition: transform var(--app-dur) var(--app-ease);
+
+      &:hover {
+        transform: scale(1.12);
+      }
+    }
+
+    .el-color-picker__color {
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+      border: 0;
+      border-radius: 50%;
+    }
+
+    .el-color-picker__color-inner {
+      border-radius: 50%;
+    }
+
+    .el-color-picker__icon,
+    .el-color-picker__empty {
+      display: none;
     }
   }
 

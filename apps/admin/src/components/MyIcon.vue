@@ -1,6 +1,6 @@
 <script setup lang="ts">
   import * as ElementPlusIconsVue from "@element-plus/icons-vue";
-  import type { Component } from "vue";
+
   interface IconProps {
     name: string; // 本地svg就传 svg:[name]，element-plus图标就传 [name]
     size?: number | string;

@@ -26,8 +26,12 @@
   function onEntry(path: string) {
     if (path) router.push(path);
   }
+
+  const text = ref("");
 </script>
 
 <template>
-  <div style="height: 100%; background-color: aqua"></div>
+  <div style="height: 100%">
+    <el-input v-model="text"></el-input>
+  </div>
 </template>

@@ -71,7 +71,7 @@
   <div class="header-right">
     <el-tooltip v-for="action in actions" :key="action.key" :content="action.tip" placement="bottom" :show-after="360">
       <button type="button" class="app-icon-btn" @click="action.run()">
-        <MyIcon :name="action.icon" :size="18" />
+        <my-icon :name="action.icon" :size="18" />
       </button>
     </el-tooltip>
 
@@ -81,7 +81,7 @@
       <button type="button" class="header-user">
         <el-avatar :size="24" class="header-avatar">{{ avatarText }}</el-avatar>
         <span class="header-user-name">{{ layoutData.userInfo.name }}</span>
-        <MyIcon name="ArrowDown" :size="12" color="var(--app-text-3)" />
+        <my-icon name="ArrowDown" :size="12" color="var(--app-text-3)" />
       </button>
 
       <template #dropdown>

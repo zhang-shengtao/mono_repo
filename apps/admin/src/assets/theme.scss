@@ -101,8 +101,14 @@
   --el-menu-text-color: var(--app-sidebar-text-2);
   --el-menu-active-color: var(--app-primary);
   --el-menu-hover-bg-color: transparent;
-  --el-menu-item-height: 38px;
-  --el-menu-sub-item-height: 34px;
+  /* 侧栏菜单行高：一级与二级共用同一个值（Element Plus 默认一级 56px、
+     二级 calc(56 - 6) = 50px，不同就会让选中/悬停底色一块高一块矮）。
+     注意下面的 --el-menu-item-height / --el-menu-sub-item-height 实际会被
+     Element Plus 按需注入的 el-menu.css 覆盖（它晚于本主题加载，见 global.scss 里的说明），
+     所以真正锁死行高的是 --app-menu-row-h；想整体改行高，只改这一处即可 */
+  --app-menu-row-h: 50px;
+  --el-menu-item-height: var(--app-menu-row-h);
+  --el-menu-sub-item-height: var(--app-menu-row-h);
   --el-menu-horizontal-height: 34px;
   --el-menu-base-level-padding: 16px;
   --el-menu-level-padding: 14px;

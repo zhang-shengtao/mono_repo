@@ -35,11 +35,6 @@ a {
   text-decoration: none;
 }
 
-/* ── 滚动条：细窄悬浮块，悬停加深，全站统一 ─────────────────
- * 注意：Chromium 里一旦给元素写了 scrollbar-width / scrollbar-color，
- * 就会忽略 ::-webkit-scrollbar 的定制样式，所以两套要按浏览器分开写：
- * WebKit/Blink 走伪元素（更细、圆角、可高亮），Firefox 走标准属性。
- */
 @mixin app-scrollbar-webkit {
   &::-webkit-scrollbar {
     width: var(--app-scrollbar-size);
@@ -432,6 +427,13 @@ html .el-menu.el-menu--horizontal {
 }
 
 html .el-menu-item,
+html .el-sub-menu__title,
+html .el-sub-menu .el-menu-item {
+  height: var(--app-menu-row-h, 50px);
+  line-height: var(--app-menu-row-h, 50px);
+}
+
+html .el-menu-item,
 html .el-sub-menu__title {
   position: relative;
   margin: 2px 6px;
@@ -494,6 +496,17 @@ html .el-menu--collapse .el-sub-menu__title {
   .el-sub-menu__icon-arrow {
     display: none;
   }
+}
+
+/* 折叠态下普通菜单项（el-menu-item）的内容会被 Element Plus 再包一层 .el-menu-tooltip__trigger：
+   它是一层 absolute + left:0 + width:100% + padding:0 var(--el-menu-base-level-padding) 的覆盖层，
+   而官方给图标定宽、居中的规则要求 li 是 .el-menu--collapse 的直接子元素；
+   菜单项外面还套了 <a>（AppLink 负责路由跳转），这条规则选不中，
+   图标就贴着左内边距起步，比分组标题（el-sub-menu__title）的图标偏左，上下不在一条竖线上。
+   这里把内边距收掉、内容居中，两种结构就都落到侧栏中轴上了 */
+html .el-menu--collapse .el-menu-item .el-menu-tooltip__trigger {
+  justify-content: center;
+  padding: 0 !important;
 }
 
 html .el-menu--popup {
@@ -611,6 +624,24 @@ html .el-dropdown-menu__item {
     color: var(--app-primary);
     background-color: color-mix(in srgb, var(--app-primary) 10%, transparent);
   }
+}
+
+html :focus-visible {
+  outline: 2px solid color-mix(in srgb, var(--app-primary) 55%, transparent);
+  outline-offset: 1px;
+}
+
+html input:focus-visible,
+html textarea:focus-visible,
+html .el-input__inner:focus-visible,
+html .el-textarea__inner:focus-visible,
+html .el-range-input:focus-visible,
+html .el-select__wrapper:focus-visible,
+html .el-checkbox__original:focus-visible,
+html .el-radio__original:focus-visible,
+html .el-switch__input:focus-visible,
+html [tabindex="-1"]:focus-visible {
+  outline: none;
 }
 
 html .el-card {

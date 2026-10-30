@@ -20,6 +20,6 @@
 
 <template>
   <el-table :data="rows" size="small" border>
-    <el-table-column v-for="column in columns" :key="column.prop" :prop="column.prop" :label="column.label" :width="column.width" />
+    <el-table-column v-for="column in columns" :key="column.prop" :prop="column.prop" :label="column.label" />
   </el-table>
 </template>

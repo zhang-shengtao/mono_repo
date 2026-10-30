@@ -79,17 +79,17 @@
         <p class="desc">当前账号的角色没有获得此资源的访问许可。如需继续，请联系系统管理员为你分配相应权限，或切换为有权限的账号后重试。</p>
 
         <p class="path" title="被拦截的访问地址">
-          <MyIcon name="Link" :size="13" />
+          <my-icon name="Link" :size="13" />
           <span class="path-text">{{ blockedPath }}</span>
         </p>
 
         <div class="actions">
           <button type="button" class="btn btn-primary" @click="goHome">
-            <MyIcon name="HomeFilled" :size="15" />
+            <my-icon name="HomeFilled" :size="15" />
             返回首页
           </button>
           <button type="button" class="btn btn-ghost" @click="goBack">
-            <MyIcon name="Back" :size="15" />
+            <my-icon name="Back" :size="15" />
             返回上一页
           </button>
           <button type="button" class="btn btn-text" @click="relogin">切换账号登录</button>

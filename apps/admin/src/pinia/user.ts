@@ -33,7 +33,6 @@ function menuArr(allArr: RouteRecordRaw[], path = "") {
   });
   return arr;
 }
-
 export default defineStore("user", () => {
   const userInfo = ref<UserInfo>({ ...DEFAULT_USER_INFO });
 

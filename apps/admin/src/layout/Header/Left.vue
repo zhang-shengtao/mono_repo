@@ -17,7 +17,7 @@
 <template>
   <div class="header-left">
     <button v-if="showToggle" type="button" class="app-icon-btn" :title="layoutData.isCollapse ? '展开菜单' : '收起菜单'" @click="layoutData.isCollapse = !layoutData.isCollapse">
-      <MyIcon :name="layoutData.isCollapse ? 'Expand' : 'Fold'" :size="18" />
+      <my-icon :name="layoutData.isCollapse ? 'Expand' : 'Fold'" :size="18" />
     </button>
     <Breadcrumb v-if="showBreadcrumb" />
   </div>

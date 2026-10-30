@@ -5,6 +5,24 @@
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta name="theme-color" content="#f4f7fc" />
+    <script>
+      (function () {
+        try {
+          var cache = JSON.parse(localStorage.getItem("admin:layout:settings") || "null");
+          if (!cache || typeof cache !== "object") return;
+
+          var dark = cache.theme === "dark" || (cache.theme === "auto" && window.matchMedia("(prefers-color-scheme: dark)").matches);
+          var root = document.documentElement;
+          if (dark) root.classList.add("dark");
+          if (cache.layoutStyle) root.dataset.layout = cache.layoutStyle;
+          if (cache.material) root.dataset.material = cache.material;
+          if (cache.sidebarTheme) root.dataset.sidebar = cache.sidebarTheme;
+          if (cache.primaryColor) root.style.setProperty("--app-primary", cache.primaryColor);
+        } catch {
+          // 缓存损坏 / 隐私模式下 localStorage 不可用：按默认浅色渲染，交给 main.ts 兜底
+        }
+      })();
+    </script>
   </head>
   <body>
     <div id="app"></div>

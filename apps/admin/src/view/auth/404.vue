@@ -76,17 +76,17 @@
         <p class="desc">你访问的地址不存在，可能已被移动、重命名或删除。请检查链接是否拼写正确，或从下方入口重新出发。</p>
 
         <p class="path" title="请求的访问地址">
-          <MyIcon name="Link" :size="13" />
+          <my-icon name="Link" :size="13" />
           <span class="path-text">{{ route.fullPath }}</span>
         </p>
 
         <div class="actions">
           <button type="button" class="btn btn-primary" @click="goHome">
-            <MyIcon name="HomeFilled" :size="15" />
+            <my-icon name="HomeFilled" :size="15" />
             返回首页
           </button>
           <button type="button" class="btn btn-ghost" @click="goBack">
-            <MyIcon name="Back" :size="15" />
+            <my-icon name="Back" :size="15" />
             返回上一页
           </button>
         </div>
@@ -94,7 +94,7 @@
         <div class="links">
           <span class="links-label">常用入口</span>
           <button v-for="entry in entries" :key="entry.path" type="button" class="chip" @click="goEntry(entry.path)">
-            <MyIcon :name="entry.icon" :size="13" />
+            <my-icon :name="entry.icon" :size="13" />
             {{ entry.title }}
           </button>
         </div>

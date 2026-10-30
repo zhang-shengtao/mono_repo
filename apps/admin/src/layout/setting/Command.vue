@@ -174,7 +174,7 @@
     <div v-if="layoutData.commandOpen" class="app-command-mask" @click.self="layoutData.commandOpen = false">
       <div class="app-command-panel">
         <div class="command-search">
-          <MyIcon name="Search" :size="16" color="var(--app-text-3)" />
+          <my-icon name="Search" :size="16" color="var(--app-text-3)" />
           <input ref="inputRef" v-model="keyword" class="command-input" placeholder="搜索页面或操作…" />
           <kbd class="command-kbd">ESC</kbd>
         </div>
@@ -189,7 +189,7 @@
             @mouseenter="activeIndex = index"
             @click="run(item)"
           >
-            <MyIcon v-if="item.icon" :name="item.icon" :size="16" />
+            <my-icon v-if="item.icon" :name="item.icon" :size="16" />
             <span class="command-title">{{ item.title }}</span>
             <span class="command-group">{{ item.group }}</span>
           </button>

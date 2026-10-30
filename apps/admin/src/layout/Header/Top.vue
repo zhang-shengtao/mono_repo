@@ -104,9 +104,9 @@
           @blur="closeMenuSoon()"
           @click="onSelect(item)"
         >
-          <MyIcon v-if="item.meta?.icon" :name="item.meta.icon" :size="15" />
+          <my-icon v-if="item.meta?.icon" :name="item.meta.icon" :size="15" />
           <span class="top-item-text">{{ item.meta?.title }}</span>
-          <MyIcon v-if="childrenOf(item).length" class="top-item-arrow" name="ArrowDown" :size="11" />
+          <my-icon v-if="childrenOf(item).length" class="top-item-arrow" name="ArrowDown" :size="11" />
         </button>
       </template>
 

@@ -12,19 +12,31 @@
   layoutData.menuList = userStore.menuList;
   const route = useRoute();
 
+  function collectTab() {
+    if (!layoutData.isShowTabs) {
+      if (layoutData.tabs.length) layoutData.tabs = [];
+      return;
+    }
+    const title = route.meta?.title;
+    if (!title || !route.name || route.meta?.hidden) return;
+    const tab = { path: route.path, name: String(route.name), title: String(title), key: "" };
+    const exist = layoutData.tabs.find((item) => item.path === tab.path);
+    if (exist) exist.title = tab.title;
+    else layoutData.tabs.push(tab);
+  }
+
+  // 页签按 route.path 建：query / hash 变化不算换页，不需要新页签
   watch(
-    () => route.fullPath,
+    () => route.path,
     () => {
       if (layoutData.isMobile) layoutData.isCollapse = true;
-      const title = route.meta?.title;
-      if (!title || !route.name || route.meta?.hidden) return;
-      const tab = { path: route.path, fullPath: route.fullPath, name: String(route.name), title: String(title) };
-      const exist = layoutData.tabs.find((item) => item.fullPath === tab.fullPath);
-      if (exist) exist.title = tab.title;
-      else layoutData.tabs.push(tab);
+      collectTab();
     },
     { immediate: true },
   );
+
+  // 开关不会触发路由变化，单独盯一下：关掉时清空历史页签，重新打开时补回当前页签
+  watch(() => layoutData.isShowTabs, collectTab);
   const isMixChildless = computed(() => layoutData.layoutStyle === "mix" && !layoutData.isMobile && layoutData.getModuleMenus(route.path).length === 0);
   const rootClass = computed(() => ({
     "is-collapse": layoutData.isCollapse,
