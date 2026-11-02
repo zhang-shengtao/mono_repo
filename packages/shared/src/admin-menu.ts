@@ -21,16 +21,14 @@ export type MenuType = z.infer<typeof menuTypeSchema>;
  * 菜单元数据（admin_menus.meta，jsonb）的通用形状。
  * 各类型的必填项由服务端按 type 二次校验：
  *   directory → title、path
- *   page      → title、path、name（component 可选，表单暂不收集）
+ *   page      → title、path、name
  *   button    → title
- * 多传的键会被裁掉，不会落库。
+ * 多传的键会被裁掉，不会落库；icon / component 目前不开放配置，不在契约里。
  */
 export const menuMetaSchema = z.object({
   title: z.string().trim().min(1).max(30).describe("菜单名称；按钮则是按钮名称"),
   path: z.string().trim().max(120).optional().describe("路由路径，绝对路径，如 /system/menu"),
   name: z.string().trim().max(60).optional().describe("路由名（keep-alive 依赖），如 systemMenu"),
-  component: z.string().trim().max(160).optional().describe("页面组件路径（可选，页面表单暂不收集），相对 src/view，如 system/menu"),
-  icon: z.string().trim().max(60).optional().describe("Element Plus 图标名，如 Setting"),
   keepAlive: z.boolean().optional().describe("是否缓存页面"),
   isScreen: z.boolean().optional().describe("是否占满内容区"),
   hidden: z.boolean().optional().describe("是否隐藏（不进菜单 / 不进页签）"),

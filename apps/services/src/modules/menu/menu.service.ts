@@ -35,7 +35,7 @@ export default class MenuService {
       if (!keyword) return true;
 
       const meta = toMeta(row);
-      const fields = [meta.title, meta.path ?? "", meta.name ?? "", meta.component ?? "", row.permission ?? ""];
+      const fields = [meta.title, meta.path ?? "", meta.name ?? "", row.permission ?? ""];
       return fields.some((value) => value.toLowerCase().includes(keyword));
     });
 
@@ -300,7 +300,7 @@ function normalizeMeta(type: MenuType, meta: MenuMeta): MenuMeta {
 
   const path = normalizePath(type, meta.path);
   // 重定向归目录用：目录点进去直接落到某个页面；页面的跳转由路由自己决定
-  if (type === "directory") return compact({ title, path, icon: meta.icon, redirect: normalizeRedirect(meta.redirect) });
+  if (type === "directory") return compact({ title, path, redirect: normalizeRedirect(meta.redirect) });
 
   const name = (meta.name ?? "").trim();
   if (!name) throw new AppError(BusinessCode.PARAM_ERROR, "页面必须填写路由名，例如 systemMenu");
@@ -312,9 +312,6 @@ function normalizeMeta(type: MenuType, meta: MenuMeta): MenuMeta {
     title,
     path,
     name,
-    // 组件路径暂不强制（表单已不收集）：传了就归一化后存，没传就不落这个键
-    component: normalizeComponent(meta.component),
-    icon: meta.icon,
     keepAlive: meta.keepAlive,
     isScreen: meta.isScreen,
     hidden: meta.hidden,
@@ -337,15 +334,6 @@ function normalizePath(type: MenuType, value: string | undefined) {
   if (/\s/.test(raw)) throw new AppError(BusinessCode.PARAM_ERROR, "路由路径不能包含空格");
   if (!raw.startsWith("/")) throw new AppError(BusinessCode.PARAM_ERROR, "路由路径必须以 / 开头，例如 /system/menu");
   return raw.replace(/\/{2,}/g, "/").replace(/\/+$/, "") || "/";
-}
-
-/** 组件路径统一成「相对 src/view、不带 .vue」，如 system/menu */
-function normalizeComponent(value: string | undefined) {
-  return (value ?? "")
-    .trim()
-    .replace(/^\/+/, "")
-    .replace(/\.vue$/i, "")
-    .replace(/\/+$/, "");
 }
 
 /** 丢掉 undefined / 空串，避免 jsonb 里存一堆空键 */
