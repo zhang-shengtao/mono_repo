@@ -578,6 +578,20 @@ html .el-table {
     background-color: transparent;
   }
 
+  // 固定列（fixed left / right）是 sticky 定位、自身没有背景，上面的透明规则会让
+  // 横向滚动时后面列的文字透出来（勾选框压在姓名上、Tag 压在地址上）。
+  // 这里给固定列补一层不透明底色，表头再叠一层主题的 header 色调。
+  tr > td.el-table__cell.el-table-fixed-column--left,
+  tr > td.el-table__cell.el-table-fixed-column--right {
+    background-color: var(--app-solid);
+  }
+
+  th.el-table__cell.el-table-fixed-column--left,
+  th.el-table__cell.el-table-fixed-column--right {
+    background-color: var(--app-solid);
+    background-image: linear-gradient(var(--el-table-header-bg-color), var(--el-table-header-bg-color));
+  }
+
   &::before,
   .el-table__inner-wrapper::before {
     display: none;
@@ -603,7 +617,7 @@ html .el-drawer {
 }
 
 html .el-overlay {
-  background-color: rgba(15, 23, 42, 0.28);
+  background-color: var(--app-mask);
 }
 
 html .el-popper.is-light,
@@ -653,6 +667,76 @@ html .el-card {
 
 html .el-divider {
   border-color: color-mix(in srgb, var(--app-text-3) 18%, transparent);
+}
+
+/* ── Element Plus：变量盖不到的组件 ─────────────────────────────────────
+   .el-message / .el-notification / .el-message-box / .el-dialog 这些在组件
+   根节点上就声明了自己的 --el-* 变量（例如 .el-message 的 --el-message-bg-color），
+   在 :root 里改是不生效的，只能在同样的元素上再盖一层，顺带补上玻璃质感。 */
+html .el-dialog {
+  --el-dialog-border-radius: var(--app-radius-lg);
+  --el-dialog-box-shadow: var(--app-shadow-hover);
+  border: 1px solid var(--app-glass-border);
+  background-color: var(--app-surface);
+  backdrop-filter: var(--app-blur);
+  -webkit-backdrop-filter: var(--app-blur);
+}
+
+html .el-message {
+  border-radius: var(--app-radius-sm);
+  border-color: var(--app-glass-border);
+  backdrop-filter: var(--app-blur);
+  -webkit-backdrop-filter: var(--app-blur);
+  box-shadow: var(--app-shadow-sm);
+}
+
+html .el-notification {
+  --el-notification-radius: var(--app-radius);
+  --el-notification-border-color: var(--app-glass-border);
+  --el-notification-shadow: var(--app-shadow);
+  border-color: var(--app-glass-border);
+  background-color: var(--app-surface);
+  backdrop-filter: var(--app-blur);
+  -webkit-backdrop-filter: var(--app-blur);
+}
+
+html .el-message-box {
+  --el-messagebox-border-radius: var(--app-radius-lg);
+  --el-messagebox-box-shadow: var(--app-shadow-hover);
+  border: 1px solid var(--app-glass-border);
+  background-color: var(--app-surface);
+  backdrop-filter: var(--app-blur);
+  -webkit-backdrop-filter: var(--app-blur);
+}
+
+html .el-tag {
+  --el-tag-border-radius: var(--app-radius-sm);
+  font-weight: 500;
+}
+
+html .el-tag--small {
+  --el-tag-border-radius: 6px;
+}
+
+html .el-alert {
+  --el-alert-border-radius-base: var(--app-radius-sm);
+}
+
+html .el-avatar {
+  --el-avatar-bg-color: color-mix(in srgb, var(--app-primary) 14%, transparent);
+  --el-avatar-text-color: var(--app-primary);
+}
+
+/* 分页的选中项是实心主色块 + 白字（Element 自带），只统一圆角与悬停色 */
+html .el-pagination {
+  --el-pagination-border-radius: var(--app-radius-sm);
+  --el-pagination-hover-color: var(--app-primary);
+  font-weight: 500;
+}
+
+html .el-loading-mask {
+  backdrop-filter: blur(2px);
+  -webkit-backdrop-filter: blur(2px);
 }
 
 .app-command-mask {

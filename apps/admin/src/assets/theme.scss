@@ -45,6 +45,7 @@
   --app-shadow: 0 24px 60px rgba(49, 46, 129, 0.14);
   --app-shadow-inset: inset 0 1px 0 rgba(255, 255, 255, 0.6);
   --app-shadow-hover: 0 30px 70px rgba(49, 46, 129, 0.2);
+  --app-shadow-sm: 0 10px 26px rgba(49, 46, 129, 0.1);
 
   --app-dur: 240ms;
   --app-ease: cubic-bezier(0.22, 0.61, 0.36, 1);
@@ -65,59 +66,17 @@
 
   --app-font: Inter, "PingFang SC", "Microsoft YaHei", ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
 
-  --el-color-primary: var(--app-primary);
-  --el-color-primary-light-3: color-mix(in srgb, var(--app-primary) 70%, #fff);
-  --el-color-primary-light-5: color-mix(in srgb, var(--app-primary) 50%, #fff);
-  --el-color-primary-light-7: color-mix(in srgb, var(--app-primary) 30%, #fff);
-  --el-color-primary-light-8: color-mix(in srgb, var(--app-primary) 20%, #fff);
-  --el-color-primary-light-9: color-mix(in srgb, var(--app-primary) 10%, #fff);
-  --el-color-primary-dark-2: color-mix(in srgb, var(--app-primary) 80%, #000);
+  --app-info: #64748b;
 
-  --el-color-success: var(--app-success);
-  --el-color-warning: var(--app-warning);
-  --el-color-danger: var(--app-danger);
-  --el-color-error: var(--app-danger);
+  /* 语义色阶的调和目标：浅色往白里调、深色往深底里调（Element Plus 的
+     light-3/5/7/8/9、dark-2 都靠这两个值推导，见文件末尾的映射表） */
+  --app-tint-mix: #ffffff;
+  --app-shade-mix: #000000;
 
-  --el-bg-color: var(--app-solid);
-  --el-bg-color-overlay: var(--app-solid);
-  --el-fill-color-blank: transparent;
-  --el-fill-color-light: color-mix(in srgb, var(--app-primary) 6%, transparent);
-
-  --el-font-family: var(--app-font);
-  --el-border-radius-base: var(--app-radius-sm);
-  --el-border-radius-small: 8px;
-  --el-border-radius-round: var(--app-radius-pill);
-
-  --el-text-color-primary: var(--app-text);
-  --el-text-color-regular: var(--app-text-2);
-  --el-text-color-secondary: var(--app-text-3);
-  --el-text-color-placeholder: var(--app-text-3);
-
-  --el-border-color: color-mix(in srgb, var(--app-text-3) 20%, transparent);
-  --el-border-color-light: color-mix(in srgb, var(--app-text-3) 14%, transparent);
-
-  --el-menu-bg-color: transparent;
-  --el-menu-border-color: transparent;
-  --el-menu-text-color: var(--app-sidebar-text-2);
-  --el-menu-active-color: var(--app-primary);
-  --el-menu-hover-bg-color: transparent;
   /* 侧栏菜单行高：一级与二级共用同一个值（Element Plus 默认一级 56px、
      二级 calc(56 - 6) = 50px，不同就会让选中/悬停底色一块高一块矮）。
-     注意下面的 --el-menu-item-height / --el-menu-sub-item-height 实际会被
-     Element Plus 按需注入的 el-menu.css 覆盖（它晚于本主题加载，见 global.scss 里的说明），
-     所以真正锁死行高的是 --app-menu-row-h；想整体改行高，只改这一处即可 */
+     想整体改行高，只改这一处即可 */
   --app-menu-row-h: 50px;
-  --el-menu-item-height: var(--app-menu-row-h);
-  --el-menu-sub-item-height: var(--app-menu-row-h);
-  --el-menu-horizontal-height: 34px;
-  --el-menu-base-level-padding: 16px;
-  --el-menu-level-padding: 14px;
-
-  --el-table-bg-color: transparent;
-  --el-table-tr-bg-color: transparent;
-  --el-table-header-bg-color: color-mix(in srgb, var(--app-primary) 4%, transparent);
-  --el-table-row-hover-bg-color: color-mix(in srgb, var(--app-primary) 3%, transparent);
-  --el-table-border-color: color-mix(in srgb, var(--app-text-3) 16%, transparent);
 }
 
 html.dark {
@@ -133,7 +92,8 @@ html.dark {
   --app-header: rgba(8, 12, 22, 0.6);
   --app-sidebar: rgba(10, 16, 30, 0.62);
   --app-sidebar-image:
-    radial-gradient(130% 62% at 0% 0%, rgba(148, 163, 184, 0.18), transparent 60%), linear-gradient(172deg, rgba(255, 255, 255, 0.07) 0%, rgba(255, 255, 255, 0) 46%, rgba(255, 255, 255, 0.04) 100%);
+    radial-gradient(130% 62% at 0% 0%, rgba(148, 163, 184, 0.18), transparent 60%),
+    linear-gradient(172deg, rgba(255, 255, 255, 0.07) 0%, rgba(255, 255, 255, 0) 46%, rgba(255, 255, 255, 0.04) 100%);
   --app-sidebar-glow:
     radial-gradient(58% 26% at 30% 10%, color-mix(in srgb, var(--app-primary) 52%, transparent), transparent 70%),
     radial-gradient(52% 22% at 6% 86%, color-mix(in srgb, #22d3ee 34%, transparent), transparent 72%);
@@ -155,18 +115,120 @@ html.dark {
   --app-success: #24a37e;
   --app-warning: #d99a3c;
   --app-danger: #e05572;
+  --app-info: #94a3b8;
+
+  /* 深色下语义色阶往深底调（Element Plus 自己是往 #141414 调，这里换成主题的深蓝） */
+  --app-tint-mix: var(--app-solid);
+  --app-shade-mix: #ffffff;
 
   --app-shadow: 0 24px 60px rgba(0, 0, 0, 0.45);
   --app-shadow-inset: inset 0 1px 0 rgba(255, 255, 255, 0.06);
   --app-shadow-hover: 0 30px 70px rgba(0, 0, 0, 0.55);
+  --app-shadow-sm: 0 10px 26px rgba(0, 0, 0, 0.45);
+}
 
-  --el-color-primary-light-3: color-mix(in srgb, var(--app-primary) 70%, #141414);
-  --el-color-primary-light-5: color-mix(in srgb, var(--app-primary) 50%, #141414);
-  --el-color-primary-light-7: color-mix(in srgb, var(--app-primary) 30%, #141414);
-  --el-color-primary-light-8: color-mix(in srgb, var(--app-primary) 20%, #141414);
-  --el-color-primary-light-9: color-mix(in srgb, var(--app-primary) 10%, #141414);
-  --el-color-primary-dark-2: color-mix(in srgb, var(--app-primary) 80%, #fff);
+/* ── Element Plus 变量映射 ───────────────────────────────────────────────
+   Element Plus 自己也有一份变量表：:root（浅色）和 html.dark（深色）。
+   它的深色块选择器特异性是 (0,1,1)，比 :root (0,1,0) 高一档——所以
+   「只在 :root 里映射一次」的写法在深色下必输，实测会掉回它自己的色板：
+     --el-color-primary     #6366f1   → #409eff  开关/按钮/选中态全变 Element 蓝
+     --el-bg-color          #121a2b   → #141414  卡片、弹窗底色变成灰
+     --el-fill-color-blank  transparent→ #141414  表格/输入框的透底被顶成实灰
+     --el-color-success     #24a37e   → #67c23a  成功态变 Element 绿
+   这里用 html:root (0,1,1) 与 html.dark:root (0,2,1) 两档选择器声明同一份映射，
+   浅色深色都压得住，也不再依赖样式表的加载顺序。
+   值全部引用 --app-* 令牌：深色只需要翻令牌，不用把这张表抄第二遍。
+   ───────────────────────────────────────────────────────────────────────── */
+$el-hues: (
+  "primary": "--app-primary",
+  "success": "--app-success",
+  "warning": "--app-warning",
+  "danger": "--app-danger",
+  "error": "--app-danger",
+  "info": "--app-info",
+);
 
+html:root,
+html.dark:root {
+  /* 语义色 + 完整色阶：light-N 是「N 成 --app-tint-mix」，dark-2 是「两成 --app-shade-mix」，
+     与 Element Plus 自己的算法一致；el-tag / el-alert / el-message / plain 按钮都用这套 */
+  @each $name, $token in $el-hues {
+    --el-color-#{$name}: var(#{$token});
+
+    @each $step in 3, 5, 7, 8, 9 {
+      --el-color-#{$name}-light-#{$step}: color-mix(in srgb, var(#{$token}) #{100 - $step * 10}%, var(--app-tint-mix));
+    }
+
+    --el-color-#{$name}-dark-2: color-mix(in srgb, var(#{$token}) 80%, var(--app-shade-mix));
+  }
+
+  /* 背景 / 填充：底色交给布局的玻璃层，组件自己保持透明或极淡的主色 */
+  --el-bg-color: var(--app-solid);
+  --el-bg-color-overlay: var(--app-solid);
+  --el-bg-color-page: var(--app-bg);
+  --el-fill-color-blank: transparent;
+  --el-fill-color-extra-light: color-mix(in srgb, var(--app-primary) 2%, transparent);
+  --el-fill-color-lighter: color-mix(in srgb, var(--app-primary) 4%, transparent);
+  --el-fill-color-light: color-mix(in srgb, var(--app-primary) 6%, transparent);
+  --el-fill-color: color-mix(in srgb, var(--app-primary) 10%, transparent);
+  --el-fill-color-dark: color-mix(in srgb, var(--app-primary) 14%, transparent);
+  --el-fill-color-darker: color-mix(in srgb, var(--app-primary) 18%, transparent);
+
+  /* 文字 */
+  --el-text-color-primary: var(--app-text);
+  --el-text-color-regular: var(--app-text-2);
+  --el-text-color-secondary: var(--app-text-3);
+  --el-text-color-placeholder: var(--app-text-3);
+  --el-text-color-disabled: color-mix(in srgb, var(--app-text-3) 62%, transparent);
+
+  /* 描边 */
+  --el-border-color-darker: color-mix(in srgb, var(--app-text-3) 30%, transparent);
+  --el-border-color-dark: color-mix(in srgb, var(--app-text-3) 24%, transparent);
+  --el-border-color: color-mix(in srgb, var(--app-text-3) 20%, transparent);
+  --el-border-color-light: color-mix(in srgb, var(--app-text-3) 14%, transparent);
+  --el-border-color-lighter: color-mix(in srgb, var(--app-text-3) 10%, transparent);
+  --el-border-color-extra-light: color-mix(in srgb, var(--app-text-3) 6%, transparent);
+  --el-border-color-hover: color-mix(in srgb, var(--app-primary) 42%, transparent);
+
+  /* 遮罩 / 投影：v-loading、弹窗遮罩、浮层投影都跟着主题令牌走 */
+  --el-overlay-color: var(--app-mask);
+  --el-overlay-color-light: var(--app-mask);
+  --el-overlay-color-lighter: var(--app-mask);
+  --el-mask-color: color-mix(in srgb, var(--app-bg) 74%, transparent);
+  --el-mask-color-extra-light: color-mix(in srgb, var(--app-bg) 55%, transparent);
+  --el-box-shadow: var(--app-shadow);
+  --el-box-shadow-light: var(--app-shadow-sm);
+  --el-box-shadow-lighter: var(--app-shadow-sm);
+  --el-box-shadow-dark: var(--app-shadow-hover);
+
+  /* 字体 / 圆角 */
+  --el-font-family: var(--app-font);
+  --el-border-radius-base: var(--app-radius-sm);
+  --el-border-radius-small: 8px;
+  --el-border-radius-round: var(--app-radius-pill);
+
+  /* 菜单 */
+  --el-menu-bg-color: transparent;
+  --el-menu-border-color: transparent;
+  --el-menu-text-color: var(--app-sidebar-text-2);
+  --el-menu-active-color: var(--app-primary);
+  --el-menu-hover-bg-color: transparent;
+  --el-menu-item-height: var(--app-menu-row-h);
+  --el-menu-sub-item-height: var(--app-menu-row-h);
+  --el-menu-horizontal-height: 34px;
+  --el-menu-base-level-padding: 16px;
+  --el-menu-level-padding: 14px;
+
+  /* 表格 */
+  --el-table-bg-color: transparent;
+  --el-table-tr-bg-color: transparent;
+  --el-table-header-bg-color: color-mix(in srgb, var(--app-primary) 4%, transparent);
+  --el-table-row-hover-bg-color: color-mix(in srgb, var(--app-primary) 3%, transparent);
+  --el-table-border-color: color-mix(in srgb, var(--app-text-3) 16%, transparent);
+}
+
+/* 同样的透明度落在更黑的底子上会更淡，深色的描边单独压一档 */
+html.dark:root {
   --el-border-color: color-mix(in srgb, var(--app-text-3) 26%, transparent);
   --el-border-color-light: color-mix(in srgb, var(--app-text-3) 18%, transparent);
 }
@@ -209,7 +271,6 @@ html[data-sidebar="dark"] {
   --app-sidebar-blur: none;
   --app-sidebar-text: #e6ecf5;
   --app-sidebar-text-2: #8d9ab0;
-  --el-menu-text-color: #8d9ab0;
 }
 
 html.dark[data-sidebar="dark"] {

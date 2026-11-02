@@ -11,7 +11,7 @@ export default function () {
     }),
     AutoImport({
       dts: "auto-imports.d.ts",
-      imports: ["vue-router", "vue", "pinia", "@vueuse/core"],
+      imports: ["vue-router", "vue", "pinia", "@vueuse/core", { from: "vue", imports: ["GlobalComponents"], type: true }],
       resolvers: [ElementPlusResolver({ importStyle: false })],
     }),
   ];
