@@ -180,7 +180,11 @@ export default class MenuService {
 
     const [codeRow] = await this.fastify.db.select().from(codeTable).where(eq(codeTable.code, value)).limit(1);
     if (!codeRow) throw new AppError(BusinessCode.PARAM_ERROR, `权限码 ${value} 不存在，请先在权限码管理里创建`);
-    if (codeRow.is_disabled) throw new AppError(BusinessCode.PARAM_ERROR, `权限码 ${value} 已被禁用，不能绑定`);
+
+    // 权限码在管理页可以被禁用；本菜单已经绑着的那个码允许原样保留（否则禁用后连菜单名称都改不了），
+    // 但禁用的码不能被新绑定，也不能从别的菜单抢过来
+    const keepsOwnBinding = selfId !== null && codeRow.bind_menu_id === selfId;
+    if (codeRow.is_disabled && !keepsOwnBinding) throw new AppError(BusinessCode.PARAM_ERROR, `权限码 ${value} 已被禁用，不能绑定`);
     if (codeRow.bind_menu_id !== null && codeRow.bind_menu_id !== selfId) {
       throw new AppError(BusinessCode.CONFLICT, `权限码 ${value} 已绑定到「${await this.menuTitle(codeRow.bind_menu_id)}」`);
     }

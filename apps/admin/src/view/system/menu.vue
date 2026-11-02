@@ -1,7 +1,6 @@
 <script setup lang="ts">
   import type { MenuBody, MenuMeta, MenuNode, MenuType, UpdateMenuBody } from "@repo/shared";
   import type { FormInstance, FormRules } from "element-plus";
-  import { ElMessageBox } from "element-plus";
   import { createMenu, deleteMenu, fetchMenuTree, updateMenu } from "@/api/menu";
   import { fetchCodeList, type CodeItem } from "@/api/code";
   defineOptions({ name: "systemMenu" });
@@ -31,7 +30,7 @@
   }
 
   const columns: TableColumn<MenuNode>[] = [
-    { label: "菜单名称", slot: "title", align: "left", minWidth: 240 },
+    { label: "菜单名称", prop: (option) => option.row?.meta?.title || "未命名菜单", align: "left", minWidth: 240 },
     { label: "类型", slot: "type", width: 88 },
     { label: "权限码", slot: "permission", align: "left", minWidth: 210 },
     { label: "排序", prop: "sort", width: 74 },
@@ -53,10 +52,6 @@
    */
   function metaTitle(row?: { meta?: Partial<MenuMeta> | null }) {
     return row?.meta?.title || "未命名菜单";
-  }
-
-  function countNodes(nodes: MenuNode[]): number {
-    return nodes.reduce((sum, node) => sum + 1 + countNodes(node.children ?? []), 0);
   }
 
   function findNode(nodes: MenuNode[], menus_id: number): MenuNode | undefined {
@@ -449,11 +444,6 @@
     </header>
 
     <my-table v-loading="loading" :data="rows" :columns="columns" row-key="menus_id" :tree-props="{ children: 'children' }" :default-expand-all="true" size="small" border>
-      <template #title="{ row }">
-        <span class="row-title">
-          <span class="row-title-text">{{ metaTitle(row) }}</span>
-        </span>
-      </template>
       <template #type="{ row }">
         <el-tag size="small" :type="typeTag(row.type)" effect="light">{{ typeLabel(row.type) }}</el-tag>
       </template>
@@ -484,7 +474,6 @@
           </el-tooltip>
         </span>
       </template>
-
       <template #empty>
         <el-empty description="暂无菜单，先新增一个目录吧" :image-size="80" />
       </template>

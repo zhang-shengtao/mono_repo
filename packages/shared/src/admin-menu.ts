@@ -121,7 +121,7 @@ export const menuDeleteResultSchema = z.object({
 });
 export type MenuDeleteResult = z.infer<typeof menuDeleteResultSchema>;
 
-/** 权限码（code 表）对外投影：菜单绑定权限码时用来做下拉 */
+/** 权限码（code 表）对外投影：菜单绑定权限码时用来做下拉，权限码管理页用来展示 */
 export interface CodeItem {
   code: string;
   scope: string;
@@ -130,16 +130,20 @@ export interface CodeItem {
   is_disabled: boolean;
   bind_menu_id: number | null;
   bind_menu_title: string | null;
+  created_at: string;
+  updated_at: string;
 }
 
 export const codeItemSchema: z.ZodType<CodeItem> = z.object({
   code: z.string().describe("权限码，如 system:menu:get"),
   scope: z.string().describe("权限作用域"),
   name: z.string().describe("权限名称"),
-  description: z.string().nullable().describe("权限描述"),
-  is_disabled: z.boolean().describe("是否禁用；禁用的权限码不能绑定"),
+  description: z.string().nullable().describe("权限描述（备注），可在权限码管理页维护"),
+  is_disabled: z.boolean().describe("是否禁用；禁用的权限码不能绑定，且持有该权限的账号无法调用对应接口"),
   bind_menu_id: z.number().int().nullable().describe("当前绑定的菜单 ID"),
   bind_menu_title: z.string().nullable().describe("当前绑定菜单的名称"),
+  created_at: z.string().describe("创建时间"),
+  updated_at: z.string().describe("最后更新时间，备注与启停都会刷新它"),
 });
 
 /** 权限码查询参数 */
@@ -164,3 +168,16 @@ export const codeListResultSchema: z.ZodType<CodeListResult> = z.object({
   list: z.array(codeItemSchema).describe("权限码列表"),
   total: z.number().int().describe("权限码总数"),
 });
+
+/**
+ * 修改权限码的请求体：只开放备注与启停。
+ *
+ * 权限码本身由 apps/services/src/permissions 的种子维护（新增 / 改名 / 删除都随代码走），
+ * 管理页不提供增删改主键的入口，所以这里也没有 scope / name 字段。
+ */
+export const updateCodeBodySchema = z.object({
+  code: z.string().trim().min(1).max(120).describe("要修改的权限码主键，如 system:code:get"),
+  description: z.string().trim().max(255).nullish().describe("备注：传 null 或空串表示清空，不传表示不改"),
+  is_disabled: z.boolean().optional().describe("是否禁用：禁用后持有该权限的账号会立刻失去对应接口的访问权限"),
+});
+export type UpdateCodeBody = z.infer<typeof updateCodeBodySchema>;

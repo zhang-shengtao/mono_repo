@@ -1,4 +1,3 @@
-
 import { sql } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/node-postgres";
 import { code } from "@/db/code";
@@ -27,7 +26,9 @@ await db
     set: {
       scope: sql`excluded.scope`,
       name: sql`excluded.name`,
-      description: sql`excluded.description`,
+      // 备注是权限码管理页上人工维护的字段：种子只在库里还空着时才补默认值，
+      // 否则每次 dev 启动（dev 脚本会跑本种子）都会把管理员改过的备注冲掉
+      description: sql`coalesce(${code.description}, excluded.description)`,
     },
   });
 
