@@ -1,6 +1,5 @@
 <script setup lang="ts">
   defineOptions({ name: "LayoutTabs" });
-
   import layoutData, { type AppTab } from "@/layout";
   import { randomString } from "@/utils/method";
   const route = useRoute();
