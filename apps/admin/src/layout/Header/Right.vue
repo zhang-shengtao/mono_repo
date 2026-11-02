@@ -1,8 +1,12 @@
 <script setup lang="ts">
   defineOptions({ name: "LayoutHeaderRight" });
-  const router = useRouter();
 
+  import { ElMessageBox } from "element-plus";
   import layoutData from "@/layout";
+  import { userPinia } from "@/pinia";
+
+  const router = useRouter();
+  const userStore = userPinia();
 
   const { isFullscreen, toggle: toggleFullscreen } = useFullscreen();
 
@@ -58,12 +62,26 @@
 
   const actions = computed(() => (layoutData.isMobile ? allActions.value.filter((item) => item.key === "search") : allActions.value));
 
-  function onCommand(command: string | number | object) {
+  async function onCommand(command: string | number | object) {
     if (command === "setting" || command === "appearance") layoutData.isSettingOpen = true;
+    if (command !== "logout") return;
 
-    if (command === "logout") {
-      router.replace("/login");
+    try {
+      await ElMessageBox.confirm("退出后需要重新登录才能继续使用后台", "确认退出登录？", {
+        type: "warning",
+        confirmButtonText: "退出登录",
+        cancelButtonText: "取消",
+      });
+    } catch {
+      return;
     }
+
+    await userStore.logout();
+    // 页签与 keep-alive 列表是运行时状态，退出时一并清掉，避免登录后看到上个账号的页签
+    layoutData.tabs = [];
+    layoutData.keepAlives.splice(0, layoutData.keepAlives.length);
+    ElMessage.success("已退出登录");
+    await router.replace({ name: "login" }).catch(() => {});
   }
 </script>
 

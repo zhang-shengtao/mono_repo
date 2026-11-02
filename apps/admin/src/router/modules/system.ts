@@ -20,6 +20,12 @@ export default [
         component: () => import("@/view/system/setting.vue"),
       },
       {
+        path: "menu",
+        name: "systemMenu",
+        meta: { title: "菜单管理", icon: "Menu" },
+        component: () => import("@/view/system/menu.vue"),
+      },
+      {
         path: "user",
         name: "systemUser",
         meta: { title: "用户管理", icon: "User" },

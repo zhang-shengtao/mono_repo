@@ -2,11 +2,11 @@ import { randomUUID } from "node:crypto";
 import { eq } from "drizzle-orm";
 import svgCaptcha from "svg-captcha-fixed";
 import { BusinessCode } from "@repo/shared";
+import type { AdminProfile, LoginBody } from "@repo/shared";
 import { AppError } from "@/core/app_error";
 import { adminUser, type AdminUser } from "@/db/admin_user";
 import type { CachedAuthUser, DecodedJwtPayload } from "@/types/auth";
 import { hashPassword, verifyPassword } from "@/utils/password";
-import type { AdminProfile, LoginBody } from "./auth.schema";
 
 /** 验证码在 Redis 里的 key 前缀（@fastify/redis 会再拼上 REDIS_PREFIX） */
 const CAPTCHA_KEY_PREFIX = "admin:captcha:";

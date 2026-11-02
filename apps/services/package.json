@@ -7,7 +7,7 @@
     "node": ">=25.0.0"
   },
   "scripts": {
-    "dev": "pnpm run db:push && pnpm run db:seed:permissions && node --env-file=.env --import tsx src/server.ts",
+    "dev": "pnpm run db:push && pnpm run db:seed:permissions && node --watch --env-file=.env --import tsx src/server.ts",
     "build": "tsx scripts/build.ts",
     "typecheck": "tsc --noEmit -p tsconfig.json",
     "gen:module": "tsx scripts/gen_module.ts",

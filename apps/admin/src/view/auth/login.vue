@@ -1,4 +1,8 @@
 <script setup lang="ts">
+  import type { CaptchaResult } from "@repo/shared";
+  import { fetchCaptcha } from "@/api/auth";
+  import { userPinia } from "@/pinia";
+  import { RequestError } from "@/utils/request";
   import { getStorage, removeStorage, setStorage } from "@/utils/storage";
 
   defineOptions({ name: "Login" });
@@ -6,15 +10,20 @@
   const REMEMBER_KEY = "admin:login:account";
 
   const router = useRouter();
+  const route = useRoute();
+  const userStore = userPinia();
 
   const remembered = getStorage<string>(REMEMBER_KEY, "");
 
   const form = reactive({
     account: remembered,
     password: "",
+    code: "",
     remember: remembered !== "",
   });
 
+  const captcha = ref<CaptchaResult | null>(null);
+  const captchaLoading = ref(false);
   const showPassword = ref(false);
   const loading = ref(false);
   const error = ref("");
@@ -34,6 +43,26 @@
     }
   }
 
+  /** 验证码 60 秒有效且一次性消费，登录失败后必须换一张 */
+  async function loadCaptcha() {
+    if (captchaLoading.value) return;
+    captchaLoading.value = true;
+    try {
+      captcha.value = await fetchCaptcha();
+    } catch {
+      captcha.value = null;
+    } finally {
+      captchaLoading.value = false;
+    }
+  }
+
+  /** 登录后去哪儿：只接受站内地址（守卫塞进来的 redirect） */
+  function redirectTarget() {
+    const redirect = route.query.redirect;
+    if (typeof redirect === "string" && redirect.startsWith("/") && !redirect.startsWith("//")) return redirect;
+    return "/";
+  }
+
   async function submit() {
     if (loading.value) return;
 
@@ -46,10 +75,23 @@
       error.value = "请输入密码";
       return;
     }
+    if (!form.code) {
+      error.value = "请输入验证码";
+      return;
+    }
+    if (!captcha.value) {
+      error.value = "验证码还没加载出来，请点击图片重试";
+      return;
+    }
 
     loading.value = true;
     try {
-      await new Promise((resolve) => setTimeout(resolve, 600));
+      await userStore.login({
+        account: form.account,
+        password: form.password,
+        code: form.code,
+        captcha_id: captcha.value.captcha_id,
+      });
 
       if (form.remember) {
         setStorage(REMEMBER_KEY, form.account);
@@ -59,7 +101,12 @@
       }
 
       ElMessage.success("登录成功");
-      await router.replace("/dashboard");
+      await router.replace(redirectTarget()).catch(() => {});
+    } catch (err) {
+      // 请求层对登录接口是 silent 的，错误文案直接贴在表单里
+      error.value = err instanceof RequestError ? err.message : "登录失败，请稍后再试";
+      form.code = "";
+      await loadCaptcha();
     } finally {
       loading.value = false;
     }
@@ -76,6 +123,8 @@
     removeStorage(REMEMBER_KEY);
     ElMessage.info("已清除本地账号缓存；浏览器已保存的密码需到浏览器的密码管理器中删除");
   }
+
+  onMounted(loadCaptcha);
 </script>
 
 <template>
@@ -158,6 +207,31 @@
           </div>
         </div>
 
+        <div class="field">
+          <label class="label" for="login-code">验证码</label>
+          <div class="control" :class="{ 'is-error': error === '请输入验证码' }">
+            <my-icon name="Key" :size="16" />
+            <input
+              id="login-code"
+              v-model.trim="form.code"
+              class="input"
+              type="text"
+              name="code"
+              inputmode="numeric"
+              maxlength="8"
+              placeholder="请输入计算结果"
+              autocomplete="off"
+              autocapitalize="off"
+              spellcheck="false"
+            />
+            <button type="button" class="captcha" title="看不清？点击刷新" @click="loadCaptcha">
+              <span v-if="captchaLoading" class="captcha-tip">加载中…</span>
+              <span v-else-if="captcha" class="captcha-image" v-html="captcha.image"></span>
+              <span v-else class="captcha-tip">点击重试</span>
+            </button>
+          </div>
+        </div>
+
         <div class="row">
           <button type="button" class="remember" :class="{ 'is-on': form.remember }" title="勾选后由浏览器提示保存账号密码" @click="toggleRemember">
             <span class="tick">
@@ -176,7 +250,7 @@
           <span>{{ loading ? "登录中…" : "登 录" }}</span>
         </button>
 
-        <p class="hint">演示环境：任意账号密码均可登录</p>
+        <p class="hint">账号由超级管理员统一分配；验证码 60 秒内有效，看不清请点击图片刷新</p>
       </form>
     </div>
   </div>
@@ -489,6 +563,46 @@
       color: var(--app-primary);
       background-color: color-mix(in srgb, var(--app-primary) 12%, transparent);
     }
+  }
+
+  /* 验证码：后端下发 SVG，直接 v-html 进来；点一下换一张 */
+  .captcha {
+    display: grid;
+    flex-shrink: 0;
+    place-items: center;
+    width: 104px;
+    height: 32px;
+    padding: 0;
+    overflow: hidden;
+    border: 1px solid color-mix(in srgb, var(--app-text-3) 20%, transparent);
+    border-radius: 8px;
+    background-color: color-mix(in srgb, var(--app-text-3) 5%, transparent);
+    cursor: pointer;
+    transition:
+      border-color var(--app-dur) var(--app-ease),
+      background-color var(--app-dur) var(--app-ease);
+
+    &:hover {
+      border-color: var(--app-primary);
+      background-color: color-mix(in srgb, var(--app-primary) 6%, transparent);
+    }
+  }
+
+  .captcha-image {
+    display: block;
+    width: 100%;
+    height: 100%;
+
+    :deep(svg) {
+      display: block;
+      width: 100%;
+      height: 100%;
+    }
+  }
+
+  .captcha-tip {
+    font-size: 11.5px;
+    color: var(--app-text-3);
   }
 
   .row {
