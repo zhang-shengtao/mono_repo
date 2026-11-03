@@ -150,3 +150,5 @@ pnpm dev                     # turbo 先构建依赖包，再并行起 shared --
 - 构建产物：`apps/services/dist/`
 
 所以不要在仓库根直接 `node apps/services/src/server.ts` —— 那样 `--env-file` 和 `@/*` 别名都会失效。
+
+![alt text](image.png)
