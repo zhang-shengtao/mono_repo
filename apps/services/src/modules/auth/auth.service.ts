@@ -7,13 +7,12 @@ import { AppError } from "@/core/app_error";
 import { adminUser, type AdminUser } from "@/db/admin_user";
 import type { CachedAuthUser, DecodedJwtPayload } from "@/types/auth";
 import { hashPassword, verifyPassword } from "@/utils/password";
+import { sessionSetKey } from "@/utils/session";
 
 /** 验证码在 Redis 里的 key 前缀（@fastify/redis 会再拼上 REDIS_PREFIX） */
 const CAPTCHA_KEY_PREFIX = "admin:captcha:";
 /** 验证码有效期：60 秒，够输入，又不至于被反复复用 */
 const CAPTCHA_TTL_SECONDS = 60;
-/** 一个账号的全部会话 id，登出/禁用时可以按账号批量清理 */
-const SESSION_SET_PREFIX = "admin:user:sessions:";
 
 export default class AuthService {
   constructor(private readonly fastify: FastifyInstance) {}
@@ -66,7 +65,7 @@ export default class AuthService {
     if (!decoded?.exp) throw new AppError(BusinessCode.INTERNAL_ERROR, "令牌签发失败");
 
     const ttl = Math.max(decoded.exp - Math.floor(Date.now() / 1000), 1);
-    const sessionKey = this.sessionSetKey(user.user_id);
+    const sessionKey = sessionSetKey(user.user_id);
     await this.fastify.redis
       .multi()
       .set(uid, JSON.stringify(profile satisfies CachedAuthUser), "EX", ttl)
@@ -77,30 +76,20 @@ export default class AuthService {
     return { token, expires_in: ttl };
   }
 
-  /** 当前登录管理员：身份来自 jwt 插件已校验的会话，资料以数据库为准 */
-  async getProfile(uid: string) {
-    const cached = await this.readSession(uid);
-    const [user] = await this.fastify.db
-      .select({
-        user_id: adminUser.user_id,
-        parent_id: adminUser.parent_id,
-        account: adminUser.account,
-        nickname: adminUser.nickname,
-        status: adminUser.status,
-      })
-      .from(adminUser)
-      .where(eq(adminUser.user_id, cached.user_id))
-      .limit(1);
-    if (!user) throw new AppError(BusinessCode.UNAUTHORIZED, "账号不存在，请重新登录");
-
-    return user;
+  /**
+   * 当前登录管理员：jwt 插件鉴权时已经把整行查出来了（request.user），
+   * 这里只做对外投影，去掉密码、备注、时间戳这些不该下发的字段，也不再查库。
+   */
+  getProfile(user: AdminUser): AdminProfile {
+    return toProfile(user);
   }
 
-  /** 退出登录：删会话 + 从账号的会话集合里摘掉，令牌立刻失效 */
-  async logout(uid: string) {
-    const cached = await this.readSession(uid).catch(() => null);
-    await this.fastify.redis.del(uid);
-    if (cached) await this.fastify.redis.srem(this.sessionSetKey(cached.user_id), uid);
+  /**
+   * 退出登录：删会话 + 从账号的会话集合里摘掉，令牌立刻失效。
+   * uid / userId 都来自 jwt 插件已校验的 request，这里不需要再读会话（读不到也算退出成功）。
+   */
+  async logout(uid: string, userId: number) {
+    await this.fastify.redis.multi().del(uid).srem(sessionSetKey(userId), uid).exec();
   }
 
   private async consumeCaptcha(captchaId: string, code: string) {
@@ -114,21 +103,6 @@ export default class AuthService {
     if (answer !== code.trim().toLowerCase()) {
       throw new AppError(BusinessCode.PARAM_ERROR, "验证码不正确，请重新输入");
     }
-  }
-
-  private async readSession(uid: string) {
-    const cached = await this.fastify.redis.get(uid);
-    if (!cached) throw new AppError(BusinessCode.UNAUTHORIZED, "登录状态已失效，请重新登录");
-
-    try {
-      return JSON.parse(cached) as CachedAuthUser;
-    } catch {
-      throw new AppError(BusinessCode.UNAUTHORIZED, "登录信息无效，请重新登录");
-    }
-  }
-
-  private sessionSetKey(userId: number) {
-    return `${SESSION_SET_PREFIX}${userId}`;
   }
 }
 

@@ -1,4 +1,4 @@
-import type { AdminProfile, CaptchaResult, LoginBody, LoginResult } from "@repo/shared";
+import type { AdminProfile, AdminRouteResult, CaptchaResult, LoginBody, LoginResult } from "@repo/shared";
 import { http, type RequestOptions } from "@/utils/request";
 
 /**
@@ -19,4 +19,9 @@ export function logout(options?: RequestOptions) {
 
 export function fetchProfile(options?: RequestOptions) {
   return http.get<AdminProfile>("/auth/profile", undefined, options);
+}
+
+/** 当前登录人可见的菜单（动态路由 + 按钮权限的数据源） */
+export function fetchRoutes(options?: RequestOptions) {
+  return http.get<AdminRouteResult>("/auth/routes", undefined, options);
 }

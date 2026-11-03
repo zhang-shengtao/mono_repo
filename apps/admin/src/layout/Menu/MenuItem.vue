@@ -1,9 +1,9 @@
 <script setup lang="ts">
   defineOptions({ name: "MenuItem" });
-  import type { RouteRecordRaw } from "vue-router";
+  import type { AppMenuNode } from "@/router/dynamic";
   import AppLink from "./AppLink.vue";
 
-  withDefaults(defineProps<{ item: RouteRecordRaw }>(), {});
+  withDefaults(defineProps<{ item: AppMenuNode }>(), {});
 </script>
 
 <template>

@@ -29,6 +29,18 @@
     if (!isOptionsComponent(type)) return "";
     return type.name || type.__name || "";
   }
+  /**
+   * 路由 props 透传给页面：动态路由把「页面节点的原始数据 + 按钮节点」挂在 props 上，
+   * 但 router-view 的插槽 API 不会自动传，得自己绑一次。
+   */
+  function routeProps(route: RouteLocationNormalizedLoadedGeneric) {
+    // vue-router 会把 props 按「具名视图」收敛成 { default: ... }，这里取 default 那一份
+    const value = route.matched.at(-1)?.props;
+    if (!value || typeof value !== "object") return {};
+    const props = (value as Record<string, unknown>).default;
+    return props && typeof props === "object" ? props : {};
+  }
+
   function myComponent(comp: VNode, route: RouteLocationNormalizedLoadedGeneric) {
     if (!layoutData.isShowTabs) return comp;
     const hasTab = layoutData.tabs.some((item) => item.path === route.path);
@@ -49,7 +61,7 @@
     <router-view #="{ Component, route }">
       <transition :name="layoutData.transitionName" mode="out-in">
         <keep-alive :include="keepAlives">
-          <component :is="myComponent(Component, route)" :key="keyStr(route.path)" />
+          <component :is="myComponent(Component, route)" :key="keyStr(route.path)" v-bind="routeProps(route)" />
         </keep-alive>
       </transition>
     </router-view>

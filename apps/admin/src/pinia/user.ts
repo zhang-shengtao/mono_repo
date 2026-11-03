@@ -1,7 +1,8 @@
 import type { AdminProfile, LoginBody, LoginResult } from "@repo/shared";
-import { fetchProfile, login as loginApi, logout as logoutApi } from "@/api/auth";
+import { fetchProfile, fetchRoutes, login as loginApi, logout as logoutApi } from "@/api/auth";
+import router, { notFoundRoute } from "@/router";
+import { buildRoutes, type AppMenuNode } from "@/router/dynamic";
 import { clearToken, getToken, setToken } from "@/utils/request";
-import { routes, type RouteRecordRaw } from "@/router";
 
 export interface UserInfo {
   name: string;
@@ -14,27 +15,26 @@ const DEFAULT_USER_INFO: UserInfo = {
   account: "",
 };
 
-// 格式化路径
-function formatPath(val1: string, val2 = "") {
-  if (val1.startsWith("http")) return val1;
-  if (val1 && !val1.startsWith("/")) val1 = "/" + val1;
-  if (val2 && !val2.startsWith("/")) val2 = "/" + val2;
-  return val2 + val1;
-}
+/**
+ * 菜单树 → 侧栏菜单。
+ * 只做两件事：拍平 `/` 这层 layout 壳、剔除 meta.hidden 的节点。
+ * path 在 buildRoutes 里已经是完整路径，这里不再拼。
+ */
+function menuArr(nodes: AppMenuNode[]): AppMenuNode[] {
+  const result: AppMenuNode[] = [];
 
-function menuArr(allArr: RouteRecordRaw[], path = "") {
-  if (allArr.length === 0) return [];
-  const arr: RouteRecordRaw[] = [];
-  allArr.forEach((page) => {
-    const item = { ...page };
-    if (item.path != "/") item.path = formatPath(item.path, path);
-    if (item.children && item.children.length && item.path != "/") {
-      item.children = menuArr(item.children, item.path);
+  for (const node of nodes) {
+    if (node.meta?.hidden === true) continue;
+
+    if (node.path === "/" && node.children?.length) {
+      result.push(...menuArr(node.children));
+      continue;
     }
-    const isChildren = item.path === "/" && item.children && item.children.length;
-    if (!(item.meta?.hidden === true)) isChildren ? arr.push(...menuArr(item.children || [])) : arr.push(item);
-  });
-  return arr;
+
+    result.push(node.children?.length ? { ...node, children: menuArr(node.children) } : node);
+  }
+
+  return result;
 }
 
 export default defineStore("user", () => {
@@ -46,8 +46,13 @@ export default defineStore("user", () => {
   /** 顶栏 / 水印直接持有这个对象，赋值一次后随登录信息实时更新 */
   const userInfo = reactive<UserInfo>({ ...DEFAULT_USER_INFO });
 
-  /** 菜单目前仍由静态路由生成，后续做「DB → 动态路由」时只需要换掉这里 */
-  const menuList = ref<RouteRecordRaw[]>(menuArr(routes));
+  /** 动态路由是否已注册：守卫据此决定要不要拉菜单 */
+  const routesReady = ref(false);
+  /** 侧栏菜单：由后端菜单树构建出来的路由树经 menuArr 拍平 */
+  const menuList = ref<AppMenuNode[]>([]);
+
+  /** 运行时 addRoute 返回的卸载函数，登出时按它精确摘掉 */
+  const removers: (() => void)[] = [];
 
   function applyProfile(value: AdminProfile | null) {
     profile.value = value;
@@ -74,7 +79,30 @@ export default defineStore("user", () => {
     return profile.value;
   }
 
-  /** 退出：服务端会话删不掉（令牌已失效）也要把本地登录态清干净 */
+  /**
+   * 拉菜单 → 构建路由 → 注册 → 生成侧栏。
+   * 失败（401 / 网络）直接抛错，由守卫统一清登录态。
+   */
+  async function loadRoutes() {
+    const result = await fetchRoutes({ silent: true });
+    const { routes, menuTree } = buildRoutes(result.list);
+
+    removeDynamicRoutes();
+    routes.forEach((route) => {
+      removers.push(router.addRoute(route));
+    });
+    // 兜底必须最后挂：先挂的话，动态路由还没加完就被它截胡了
+    removers.push(router.addRoute(notFoundRoute));
+
+    menuList.value = menuArr(menuTree);
+    routesReady.value = true;
+  }
+
+  function removeDynamicRoutes() {
+    while (removers.length > 0) removers.pop()?.();
+  }
+
+  /** 退出：服务端会话删不掉（令牌已失效）也要把本地登录态、动态路由清干净 */
   async function logout() {
     try {
       await logoutApi({ silent: true });
@@ -88,16 +116,21 @@ export default defineStore("user", () => {
     clearToken();
     token.value = "";
     applyProfile(null);
+    removeDynamicRoutes();
+    routesReady.value = false;
+    menuList.value = [];
   }
 
   return {
     token,
     profile,
     isLogged,
+    routesReady,
     userInfo,
     menuList,
     login,
     loadProfile,
+    loadRoutes,
     logout,
     reset,
   };

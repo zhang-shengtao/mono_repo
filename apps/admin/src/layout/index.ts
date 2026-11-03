@@ -1,4 +1,4 @@
-import type { RouteRecordRaw } from "@/router";
+import type { AppMenuNode } from "@/router/dynamic";
 import { getStorage, setStorage, type JsonValue } from "@/utils/storage";
 
 export type LayoutStyle = "side" | "top" | "mix";
@@ -21,7 +21,7 @@ export interface AppTab {
 }
 
 export interface LayoutSettings {
-  menuList: RouteRecordRaw[];
+  menuList: AppMenuNode[];
   isCollapse: boolean;
   theme: AppTheme;
   layoutStyle: LayoutStyle;
@@ -153,11 +153,11 @@ const tabs = ref<AppTab[]>([]);
 
 const commandOpen = ref(false);
 
-function getActiveTop(path: string): RouteRecordRaw | undefined {
+function getActiveTop(path: string): AppMenuNode | undefined {
   return settings.menuList.find((item) => (item.children?.length ? path === item.path || path.startsWith(`${item.path}/`) : path === item.path));
 }
 
-function getModuleMenus(path: string): RouteRecordRaw[] {
+function getModuleMenus(path: string): AppMenuNode[] {
   return getActiveTop(path)?.children ?? [];
 }
 

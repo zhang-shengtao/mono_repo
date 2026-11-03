@@ -2,7 +2,7 @@
   defineOptions({ name: "LayoutCommand" });
 
   import layoutData from "@/layout";
-  import type { RouteRecordRaw } from "vue-router";
+  import type { AppMenuNode } from "@/router/dynamic";
 
   const router = useRouter();
 
@@ -19,7 +19,7 @@
   const inputRef = ref<HTMLInputElement>();
 
   // menuList 已在 pinia/user.ts 的 menuArr 里递归剔除 hidden，这里只做拍平
-  function flattenMenus(list: RouteRecordRaw[], out: RouteRecordRaw[] = []): RouteRecordRaw[] {
+  function flattenMenus(list: AppMenuNode[], out: AppMenuNode[] = []): AppMenuNode[] {
     for (const item of list) {
       if (item.children?.length) flattenMenus(item.children, out);
       else out.push(item);

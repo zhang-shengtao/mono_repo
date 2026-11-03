@@ -8,7 +8,8 @@ import { z } from "zod/v4";
  *
  * 三类节点的语义：
  *   directory 目录：只做分组，meta 有 title/path（可选 redirect），permission 必须为空
- *   page      页面：只存路由配置，meta 有 title/path/name，子级只能是 button
+ *   page      页面：只存路由配置，meta 有 title/path/name，子级只能是 button；
+ *             path 可以是外链（http/https），外链页面不注册路由、不要求 name，前端只渲染成菜单项
  *   button    按钮：meta 只有 title，permission 必填（绑定 code 表的权限码）
  */
 
@@ -27,8 +28,13 @@ export type MenuType = z.infer<typeof menuTypeSchema>;
  */
 export const menuMetaSchema = z.object({
   title: z.string().trim().min(1).max(30).describe("菜单名称；按钮则是按钮名称"),
-  path: z.string().trim().max(120).optional().describe("路由路径，绝对路径，如 /system/menu"),
-  name: z.string().trim().max(60).optional().describe("路由名（keep-alive 依赖），如 systemMenu"),
+  path: z
+    .string()
+    .trim()
+    .max(500)
+    .optional()
+    .describe("路由路径：站内绝对路径（如 /system/menu）或外链（如 https://example.com）；目录只能是站内路径"),
+  name: z.string().trim().max(60).optional().describe("路由名（keep-alive 依赖），如 systemMenu；外链页面可不填"),
   keepAlive: z.boolean().optional().describe("是否缓存页面"),
   isScreen: z.boolean().optional().describe("是否占满内容区"),
   hidden: z.boolean().optional().describe("是否隐藏（不进菜单 / 不进页签）"),

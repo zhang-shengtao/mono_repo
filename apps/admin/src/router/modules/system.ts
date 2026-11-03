@@ -26,6 +26,12 @@ export default [
         component: () => import("@/view/system/code.vue"),
       },
       {
+        path: "roles",
+        name: "systemRoles",
+        meta: { title: "角色管理", icon: "UserFilled" },
+        component: () => import("@/view/system/roles.vue"),
+      },
+      {
         path: "user",
         name: "systemUser",
         meta: { title: "用户管理", icon: "User" },

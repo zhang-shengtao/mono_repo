@@ -3,7 +3,7 @@
 
   import layoutData from "@/layout";
   import MenuItem from "../Menu/MenuItem.vue";
-  import type { RouteRecordRaw } from "@/router";
+  import type { AppMenuNode } from "@/router/dynamic";
 
   const route = useRoute();
   const router = useRouter();
@@ -16,11 +16,11 @@
   const openPath = ref("");
   let closeTimer: ReturnType<typeof setTimeout> | undefined;
 
-  function childrenOf(item: RouteRecordRaw) {
+  function childrenOf(item: AppMenuNode) {
     return item.children ?? [];
   }
 
-  function firstLeafPath(item: RouteRecordRaw): string {
+  function firstLeafPath(item: AppMenuNode): string {
     const children = childrenOf(item);
     if (children.length) {
       for (const child of children) {
@@ -51,7 +51,7 @@
     openPath.value = "";
   }
 
-  function onSelect(item: RouteRecordRaw) {
+  function onSelect(item: AppMenuNode) {
     if (item.path.startsWith("http") || item.meta?.target) {
       window.open(item.path, "_blank", "noopener");
       return;

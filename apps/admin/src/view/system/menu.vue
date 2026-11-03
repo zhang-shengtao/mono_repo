@@ -3,7 +3,12 @@
   import type { FormInstance, FormRules } from "element-plus";
   import { createMenu, deleteMenu, fetchMenuTree, updateMenu } from "@/api/menu";
   import { fetchCodeList, type CodeItem } from "@/api/code";
+  import { isExternal } from "@/router/path";
+  import type { RouteMenuProps } from "@/utils/perms";
   defineOptions({ name: "systemMenu" });
+
+  // 动态路由会把当前菜单节点与按钮节点作为 props 传进来
+  defineProps<RouteMenuProps>();
 
   type BaseColumn = InstanceType<GlobalComponents["MyTable"]>["$props"]["columns"][number];
   type TableColumn<Row> = Omit<BaseColumn, "children" | "prop" | "formatter"> & {
@@ -280,12 +285,13 @@
 
     if (form.type !== "button") {
       result.path = [
-        { required: true, message: "请输入路由路径，如 /system", trigger: "blur" },
-        { pattern: /^\//, message: "路由路径必须以 / 开头", trigger: "blur" },
+        { required: true, message: "请输入路由路径，如 /system/menu 或 https://example.com", trigger: "blur" },
+        { pattern: /^(\/|https?:\/\/)/i, message: "站内路径以 / 开头，外链以 http:// 或 https:// 开头", trigger: "blur" },
         { pattern: /^\S+$/, message: "路由路径不能包含空格", trigger: "blur" },
       ];
     }
-    if (form.type === "page") {
+    // 外链页面不注册路由，也就没有路由名
+    if (form.type === "page" && !isExternal(form.path)) {
       result.name = [
         { required: true, message: "请输入路由名，如 systemMenu", trigger: "blur" },
         { pattern: /^[A-Za-z][A-Za-z0-9_-]*$/, message: "路由名以字母开头，只能包含字母、数字、下划线和中划线", trigger: "blur" },
@@ -364,6 +370,9 @@
       if (form.redirect.trim()) meta.redirect = form.redirect.trim();
       return meta;
     }
+
+    // 外链页面不注册路由：路由名 / 缓存 / 占满内容区都没有意义
+    if (isExternal(meta.path)) return meta;
 
     meta.name = form.name.trim();
     meta.keepAlive = form.keepAlive;
@@ -511,7 +520,7 @@
         </el-form-item>
 
         <el-form-item v-if="form.type !== 'button'" label="路由路径" prop="path">
-          <el-input v-model="form.path" :placeholder="form.type === 'directory' ? '如 /system' : '如 /system/menu'" />
+          <el-input v-model="form.path" :placeholder="form.type === 'directory' ? '如 /system' : '站内如 /system/menu，外链如 https://example.com'" />
         </el-form-item>
 
         <el-form-item v-if="form.type === 'directory'" label="重定向" prop="redirect">
@@ -519,7 +528,7 @@
         </el-form-item>
 
         <el-form-item v-if="form.type === 'page'" label="路由名" prop="name">
-          <el-input v-model="form.name" placeholder="如 systemMenu（keep-alive 依赖）" />
+          <el-input v-model="form.name" :placeholder="isExternal(form.path) ? '外链不用填路由名' : '如 systemMenu（keep-alive 依赖）'" :disabled="isExternal(form.path)" />
         </el-form-item>
 
         <el-form-item v-if="form.type !== 'directory'" label="权限码" prop="permission">

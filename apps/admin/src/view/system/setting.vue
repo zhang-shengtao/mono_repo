@@ -1,4 +1,9 @@
 <script setup lang="ts">
+  import type { RouteMenuProps } from "@/utils/perms";
+
+  // 动态路由会把当前菜单节点与按钮节点作为 props 传进来
+  defineProps<RouteMenuProps>();
+
   /**
    * 系统设置占位页（自带页头骨架）
    * name 必须与 route.name 一致，否则 keep-alive 静默失效。

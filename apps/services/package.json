@@ -13,7 +13,8 @@
     "gen:module": "tsx scripts/gen_module.ts",
     "db:push": "node --env-file=.env --import tsx src/db/script/push-db.ts",
     "db:seed:admin": "node --env-file=.env --import tsx src/db/script/admin-user.ts",
-    "db:seed:permissions": "node --env-file=.env --import tsx src/db/script/permissions.ts"
+    "db:seed:permissions": "node --env-file=.env --import tsx src/db/script/permissions.ts",
+    "db:sync:permissions": "node --env-file=.env --import tsx src/db/script/sync-permissions.ts"
   },
   "author": "",
   "license": "ISC",

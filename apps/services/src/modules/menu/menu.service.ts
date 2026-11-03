@@ -1,8 +1,9 @@
 import { and, asc, desc, eq, ne } from "drizzle-orm";
 import { BusinessCode } from "@repo/shared";
-import type { MenuBody, MenuMeta, MenuNode, MenuTreeQuery, MenuTreeResult, MenuType, UpdateMenuBody } from "@repo/shared";
+import type { AdminRouteResult, AuthMenuNode, MenuBody, MenuMeta, MenuNode, MenuTreeQuery, MenuTreeResult, MenuType, UpdateMenuBody } from "@repo/shared";
 import { AppError } from "@/core/app_error";
 import { adminMenus } from "@/db/admin_menus";
+import type { AdminUser } from "@/db/admin_user";
 import { code as codeTable } from "@/db/code";
 import { permissions } from "@/db/permissions";
 
@@ -25,8 +26,7 @@ export default class MenuService {
   constructor(private readonly fastify: FastifyInstance) {}
 
   /** 菜单树：全量返回，过滤时保留命中节点的祖先链，保证树形表格不断层 */
-  async tree(query: MenuTreeQuery): Promise<MenuTreeResult> {
-    const rows = await this.fastify.db.select().from(adminMenus).orderBy(desc(adminMenus.sort), asc(adminMenus.menus_id));
+  async tree(query: MenuTreeQuery): Promise<MenuTreeResult> {    const rows = await this.fastify.db.select().from(adminMenus).orderBy(desc(adminMenus.sort), asc(adminMenus.menus_id));
 
     const keyword = query.keyword?.trim().toLowerCase() ?? "";
     const matched = rows.filter((row) => {
@@ -40,6 +40,31 @@ export default class MenuService {
     });
 
     return { list: buildTree(rows, keepWithAncestors(rows, matched)), total: rows.length };
+  }
+
+  /**
+   * 当前登录人可见的菜单树（含按钮节点）：动态路由与按钮权限的唯一数据源。
+   *
+   * 超管（parent_id = 0）拿全量启用中的菜单；其他管理员取 permissions 里未禁用的 menus_id，
+   * 并补齐祖先链 —— 祖先链上只要有一个节点被禁用，这一支就整支丢弃，否则子级会被当成顶级节点。
+   */
+  async routesFor(operator: AdminUser): Promise<AdminRouteResult> {
+    const rows = await this.fastify.db.select().from(adminMenus).orderBy(desc(adminMenus.sort), asc(adminMenus.menus_id));
+    const active = rows.filter((row) => !row.is_disabled);
+    const activeById = new Map(active.map((row) => [row.menus_id, row]));
+
+    let visible: Set<number>;
+    if (operator.parent_id === 0) {
+      visible = new Set(active.map((row) => row.menus_id));
+    } else {
+      const grants = await this.fastify.db
+        .select({ menus_id: permissions.menus_id })
+        .from(permissions)
+        .where(and(eq(permissions.user_id, operator.user_id), eq(permissions.is_disabled, false)));
+      visible = withAncestors(grants.map((row) => row.menus_id), activeById);
+    }
+
+    return { list: buildRouteTree(active.filter((row) => visible.has(row.menus_id))) };
   }
 
   /** 新增菜单：校验通过后写库，并在同一事务里把权限码反向绑到新菜单 */
@@ -295,6 +320,73 @@ function buildTree(rows: MenuRow[], keep: Set<number>): MenuNode[] {
   return roots;
 }
 
+/**
+ * 命中节点 + 祖先链。
+ *
+ * 祖先只补「目录」：目录是分组，不补的话子页面会变成顶级节点；
+ * 但如果祖先是个**页面**且本身没授权，这一支要整支丢掉 —— 否则「只给了按钮没给页面」会把页面也带出来。
+ * 祖先链上只要有一个节点被禁用，同样整支丢弃。
+ */
+function withAncestors(menus_id: number[], activeById: Map<number, MenuRow>) {
+  const visible = new Set<number>();
+  const granted = new Set(menus_id);
+
+  for (const id of menus_id) {
+    if (!activeById.has(id)) continue;
+
+    const chain: number[] = [];
+    let cursor: number | undefined = id;
+    let reachable = true;
+    while (cursor !== undefined && cursor !== 0) {
+      const row = activeById.get(cursor);
+      if (!row) {
+        reachable = false;
+        break;
+      }
+      if (cursor !== id && row.type !== "directory" && !granted.has(cursor)) {
+        reachable = false;
+        break;
+      }
+      chain.push(cursor);
+      cursor = row.parent_id;
+    }
+
+    if (reachable) chain.forEach((item) => visible.add(item));
+  }
+
+  return visible;
+}
+
+/** 数据库行 → 「我的菜单」节点（不带时间戳与启停：能下发的都是启用中的） */
+function toAuthNode(row: MenuRow): AuthMenuNode {
+  return {
+    menus_id: row.menus_id,
+    type: row.type,
+    parent_id: row.parent_id,
+    meta: toMeta(row),
+    permission: row.permission ?? null,
+    sort: row.sort,
+  };
+}
+
+/** 按 parent_id 组装「我的菜单」树；顺序沿用查询顺序（sort desc, menus_id asc） */
+function buildRouteTree(rows: MenuRow[]): AuthMenuNode[] {
+  const nodes = new Map<number, AuthMenuNode>();
+  rows.forEach((row) => nodes.set(row.menus_id, toAuthNode(row)));
+
+  const roots: AuthMenuNode[] = [];
+  for (const row of rows) {
+    const node = nodes.get(row.menus_id)!;
+    const parent = row.parent_id === 0 ? undefined : nodes.get(row.parent_id);
+    if (!parent) {
+      roots.push(node);
+      continue;
+    }
+    (parent.children ??= []).push(node);
+  }
+  return roots;
+}
+
 /** 按类型裁剪 meta：只留该类型有意义的键，空值不落库；必填项在这里给出可读报错 */
 function normalizeMeta(type: MenuType, meta: MenuMeta): MenuMeta {
   const title = (meta.title ?? "").trim();
@@ -305,6 +397,9 @@ function normalizeMeta(type: MenuType, meta: MenuMeta): MenuMeta {
   const path = normalizePath(type, meta.path);
   // 重定向归目录用：目录点进去直接落到某个页面；页面的跳转由路由自己决定
   if (type === "directory") return compact({ title, path, redirect: normalizeRedirect(meta.redirect) });
+
+  // 外链页面：不注册路由，路由名 / keep-alive / 占满内容区这些配置都没有意义
+  if (isExternalPath(path)) return compact({ title, path, hidden: meta.hidden });
 
   const name = (meta.name ?? "").trim();
   if (!name) throw new AppError(BusinessCode.PARAM_ERROR, "页面必须填写路由名，例如 systemMenu");
@@ -336,8 +431,22 @@ function normalizePath(type: MenuType, value: string | undefined) {
   const raw = (value ?? "").trim();
   if (!raw) throw new AppError(BusinessCode.PARAM_ERROR, `${TYPE_LABELS[type]}必须填写路由路径，例如 /system`);
   if (/\s/.test(raw)) throw new AppError(BusinessCode.PARAM_ERROR, "路由路径不能包含空格");
-  if (!raw.startsWith("/")) throw new AppError(BusinessCode.PARAM_ERROR, "路由路径必须以 / 开头，例如 /system/menu");
+
+  // 外链：原样保存，不做斜杠规整（URL 里的 // 和结尾的 / 都是有意义的）
+  if (isExternalPath(raw)) {
+    if (type === "directory") throw new AppError(BusinessCode.PARAM_ERROR, "目录只做分组，不能是外链；外链请建为页面");
+    return raw;
+  }
+
+  if (!raw.startsWith("/")) {
+    throw new AppError(BusinessCode.PARAM_ERROR, "路由路径必须以 / 开头（外链请以 http:// 或 https:// 开头），例如 /system/menu");
+  }
   return raw.replace(/\/{2,}/g, "/").replace(/\/+$/, "") || "/";
+}
+
+/** 外链：http(s):// 开头。外链页面只进菜单，不注册路由 */
+function isExternalPath(value: string) {
+  return /^https?:\/\//i.test(value);
 }
 
 /** 丢掉 undefined / 空串，避免 jsonb 里存一堆空键 */

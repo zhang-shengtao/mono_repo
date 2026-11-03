@@ -1,4 +1,4 @@
-import { adminProfileSchema, captchaResultSchema, errorResponseSchema, loginBodySchema, loginResultSchema, responseSchema } from "@repo/shared";
+import { adminProfileSchema, adminRouteResultSchema, captchaResultSchema, errorResponseSchema, loginBodySchema, loginResultSchema, responseSchema } from "@repo/shared";
 import type { RouteAuthConfig } from "@/types/auth";
 import { z } from "zod/v4";
 
@@ -62,6 +62,24 @@ export const logoutRouteOptions = {
     description: "删除 Redis 中的当前会话，令牌随即失效",
     response: {
       200: emptyResponseSchema,
+      ...authErrorResponses,
+    },
+  },
+  config: { auth: "admin" } satisfies RouteAuthConfig,
+};
+
+/**
+ * 当前登录人可见的菜单（动态路由 + 按钮权限的数据源）。
+ * 不绑权限码：能登录就能拿到「自己能看什么」，否则二级管理员连菜单都拉不出来。
+ */
+export const routesRouteOptions = {
+  schema: {
+    tags: ["管理员认证"],
+    summary: "获取当前登录人可见的菜单",
+    description:
+      "返回当前登录人可见的菜单树（目录 / 页面 / 按钮）：超管拿全部启用中的菜单，其他管理员按 permissions 过滤并补齐祖先链（祖先被禁用则整支不下发）。前端用它构建动态路由、把按钮节点的原始数据挂到路由 props 上",
+    response: {
+      200: responseSchema(adminRouteResultSchema),
       ...authErrorResponses,
     },
   },

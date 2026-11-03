@@ -1,7 +1,11 @@
 <script setup lang="ts">
   import type { CodeItem } from "@repo/shared";
   import { fetchCodeList, updateCode } from "@/api/code";
+  import type { RouteMenuProps } from "@/utils/perms";
   defineOptions({ name: "systemCode" });
+
+  // 动态路由会把当前菜单节点与按钮节点作为 props 传进来
+  defineProps<RouteMenuProps>();
 
   type BaseColumn = InstanceType<GlobalComponents["MyTable"]>["$props"]["columns"][number];
   type TableColumn<Row> = Omit<BaseColumn, "children" | "prop" | "formatter"> & {

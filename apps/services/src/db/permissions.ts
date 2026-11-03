@@ -1,7 +1,8 @@
 import { sql } from "drizzle-orm";
-import { boolean, integer, pgTable, primaryKey, timestamp } from "drizzle-orm/pg-core";
+import { boolean, integer, pgTable, primaryKey, text, timestamp } from "drizzle-orm/pg-core";
 import { adminUser } from "./admin_user";
 import { adminMenus } from "./admin_menus";
+import { roles } from "./roles";
 
 export const permissions = pgTable(
   "permissions",
@@ -12,6 +13,9 @@ export const permissions = pgTable(
     menus_id: integer("menus_id")
       .references(() => adminMenus.menus_id)
       .notNull(), // 菜单表主键ID
+    roles_id: integer("roles_id")
+      .references(() => roles.roles_id)
+      .notNull(), // 角色表主键ID
     is_transmit: boolean("is_transmit").default(false).notNull(), // 是否可以给下级使用
     is_disabled: boolean("is_disabled").default(false).notNull(), // 是否禁用
     updated_by: integer("updated_by")

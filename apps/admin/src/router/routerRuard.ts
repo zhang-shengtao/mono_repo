@@ -33,7 +33,7 @@ export default function (router: Router) {
     // 2. 已登录还进登录页：直接回首页
     if (to.name === "login") return { path: "/" };
 
-    // 3. 首次进入或刷新后，补拉一次当前管理员资料；失败说明令牌已失效
+    // 3. 首次进入或刷新后，补拉当前管理员资料；失败说明令牌已失效
     if (!userStore.profile) {
       try {
         await userStore.loadProfile();
@@ -41,6 +41,19 @@ export default function (router: Router) {
         userStore.reset();
         return toLogin(to.fullPath);
       }
+    }
+
+    // 4. 动态路由还没注册：拉菜单 → 构建 → addRoute
+    if (!userStore.routesReady) {
+      try {
+        await userStore.loadRoutes();
+      } catch {
+        userStore.reset();
+        return toLogin(to.fullPath);
+      }
+
+      // 路由是刚加上的，这次导航仍然停在「未匹配」状态，重来一次让它按新路由表重新匹配
+      return { path: to.path, query: to.query, hash: to.hash, replace: true };
     }
 
     return true;

@@ -4,7 +4,7 @@ import { and, eq } from "drizzle-orm";
 import { BusinessCode } from "@repo/shared";
 import { AppError } from "@/core/app_error";
 import { env } from "@/core/env";
-import { adminUser } from "@/db/admin_user";
+import { adminUser, type AdminUser } from "@/db/admin_user";
 import { code } from "@/db/code";
 import { permissions } from "@/db/permissions";
 import type { PermissionCode } from "@/permissions";
@@ -42,12 +42,17 @@ const AUTH_MODES = {
  *
  * 1. 按 REALMS 表注册 @fastify/jwt 的命名空间（`fastify.jwt.admin` / `fastify.jwt.user`）；
  * 2. onRoute：启动阶段校验路由的 config.auth 声明，写错在启动就失败；
- * 3. preHandler：只跑一个钩子，按路由的 config.auth 选命名空间，校验通过后写 request.user。
+ * 3. preHandler：只跑一个钩子，按路由的 config.auth 选命名空间，校验通过后把**整行用户数据**
+ *    挂到 request.user（类型来自 db 的 AdminUser，路由里想取哪个字段就取哪个）。
  *
  * 路由通过 `config: { auth: "admin" | "user" | "public" } satisfies RouteAuthConfig` 声明所需身份；
  * 未声明等同公开（`auth: "public"` 与不声明完全一致）。
  */
 async function jwtPlugin(fastify: FastifyInstance) {
+  // request.user 由 @fastify/jwt 自己 decorate（默认 decoratorName = "user"），这里只补一个 uid：
+  // 它是会话在 Redis 里的 key，登出时要靠它精确删掉当前这一个会话。
+  fastify.decorateRequest("uid", "");
+
   for (const realm of REALM_NAMES) {
     const { secret, issuer } = REALMS[realm];
     await fastify.register(fastifyJwt, {
@@ -84,14 +89,19 @@ async function jwtPlugin(fastify: FastifyInstance) {
 
     const payload = verifyToken(fastify, auth, request.headers.authorization);
     // 会话只认登录时写进 Redis 的那份，所以登出（删 key）= 令牌立刻失效
-    const user = await readSession(fastify, payload.uid);
-    ensureUserUsable(user);
+    const session = await readSession(fastify, payload.uid);
+    ensureUserUsable(session);
+    // user_id 统一在这里收敛成正整数：脏数据直接 401
+    const userId = toUserId(session);
+
+    request.uid = payload.uid;
 
     if (auth === AUTH_MODES.admin) {
-      await ensureAdminUsable(fastify, user);
+      // 鉴权时直接把整行查出来：状态校验、权限校验、业务侧取当前登录人，共用这一份
+      const user = await findAdminUser(fastify, userId);
+      request.user = user;
       if (config.permission) await ensurePermission(fastify, user, config.permission);
     }
-    request.user = payload;
   });
 }
 
@@ -138,24 +148,26 @@ function ensureUserUsable(user: CachedAuthUser) {
   }
 }
 
-/** 管理端额外回查数据库：快照可能是登录时的旧数据，以库里状态为准 */
-async function ensureAdminUsable(fastify: FastifyInstance, user: CachedAuthUser) {
-  const userId = toUserId(user);
-  const [currentUser] = await fastify.db.select({ status: adminUser.status }).from(adminUser).where(eq(adminUser.user_id, userId)).limit(1);
-  if (!currentUser) throw new AppError(BusinessCode.UNAUTHORIZED, "账号不存在，请重新登录");
-  if (currentUser.status !== "normal") throw new AppError(BusinessCode.FORBIDDEN, "账号已被禁用");
+/**
+ * 管理端回查数据库：会话快照可能是登录时的旧数据，一律以库里为准。
+ * 顺手把整行返回给 request.user —— 业务路由拿到的就是最新的一份用户数据。
+ */
+async function findAdminUser(fastify: FastifyInstance, userId: number): Promise<AdminUser> {
+  const [user] = await fastify.db.select().from(adminUser).where(eq(adminUser.user_id, userId)).limit(1);
+  if (!user) throw new AppError(BusinessCode.UNAUTHORIZED, "账号不存在，请重新登录");
+  if (user.status !== "normal") throw new AppError(BusinessCode.FORBIDDEN, "账号已被禁用");
+  return user;
 }
 
 /** 权限以数据库为准：permissions × code 联查；超管（parent_id === 0）跳过查库 */
-async function ensurePermission(fastify: FastifyInstance, user: CachedAuthUser, permission: PermissionCode) {
+async function ensurePermission(fastify: FastifyInstance, user: AdminUser, permission: PermissionCode) {
   if (user.parent_id === 0) return;
 
-  const userId = toUserId(user);
   const rows = await fastify.db
     .select({ code: code.code })
     .from(permissions)
     .innerJoin(code, eq(permissions.menus_id, code.bind_menu_id))
-    .where(and(eq(permissions.user_id, userId), eq(permissions.is_disabled, false), eq(code.is_disabled, false), eq(code.code, permission)))
+    .where(and(eq(permissions.user_id, user.user_id), eq(permissions.is_disabled, false), eq(code.is_disabled, false), eq(code.code, permission)))
     .limit(1);
 
   if (rows.length === 0) {
@@ -163,7 +175,7 @@ async function ensurePermission(fastify: FastifyInstance, user: CachedAuthUser, 
   }
 }
 
-/** user_id 来自 Redis 里的 JSON，可能是脏数据，查库前先收敛成正整数 */
+/** user_id 来自 Redis 里的 JSON，可能是脏数据，鉴权阶段统一收敛成正整数（业务侧不再重复校验） */
 function toUserId(user: CachedAuthUser) {
   const userId = Number(user.user_id);
   if (!Number.isInteger(userId) || userId <= 0) {

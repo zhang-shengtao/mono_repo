@@ -1,4 +1,9 @@
 <script setup lang="ts">
+  import type { RouteMenuProps } from "@/utils/perms";
+
+  // 动态路由会把当前菜单节点与按钮节点作为 props 传进来
+  defineProps<RouteMenuProps>();
+
   /** MyTable 的实例类型（ref 用，clearSelection 等 API 都在上面） */
   type MyTableRef = InstanceType<GlobalComponents["MyTable"]>;
 

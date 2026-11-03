@@ -22,11 +22,6 @@ export default [
     meta: { title: "403", hidden: true },
     component: () => import("@/view/auth/403.vue"),
   },
-  {
-    // 兜底：未匹配的地址统一交给 404 页（不在布局壳内，整屏展示，route.fullPath 即用户敲错的地址）
-    path: "/:pathMatch(.*)*",
-    name: "notFound",
-    meta: { title: "404", hidden: true },
-    redirect: "/404",
-  },
+  // 兜底（/:pathMatch(.*)*）不在这里：它必须等动态路由注册完再挂，
+  // 见 router/index.ts 的 notFoundRoute 与 pinia/user.ts 的 loadRoutes()
 ] satisfies RouteRecordRaw[];
