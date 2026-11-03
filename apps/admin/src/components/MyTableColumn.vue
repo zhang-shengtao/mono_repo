@@ -15,21 +15,18 @@
     slot?: string;
     prop?: string | ((scope: CellScope) => unknown);
     formatter?: (scope: CellScope) => unknown;
-    align?: string;
   }
 
   const props = withDefaults(defineProps<Props>(), {
     header: "",
     prop: "",
     slot: "",
-    align: "center",
   });
 
-  /** 透传给 el-table-column 的 props：$attrs 全量 + prop（只有字符串才传）+ align */
+  /** 透传给 el-table-column 的 props：$attrs 全量 + prop（只有字符串才传） */
   function tableColumnProp(attrs: Record<string, any>) {
     const obj: Record<string, any> = { ...attrs };
     if (typeof props.prop === "string") obj.prop = props.prop;
-    obj.align = props.align;
     return obj;
   }
 

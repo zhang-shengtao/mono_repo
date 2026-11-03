@@ -10,6 +10,12 @@
   --app-glass-border: rgba(255, 255, 255, 0.72);
   --app-surface: rgba(255, 255, 255, 0.86);
   --app-solid: #ffffff;
+  /* 「落地色」= --app-surface 这层玻璃面压在页面底色上的合成色（不透明）。
+     给「必须有自己一层实底」的地方用（表格面板、固定列、sticky 单元格）：
+     这些位置直接用 --app-solid（纯白）会在浅色主题里从页面材质上浮出一块白，
+     而半透明的 --app-surface 又会让底下的文字透出来。它引用的
+     --app-tint-mix / --app-bg 在深色、实心材质下会换值，所以它也跟着换 */
+  --app-surface-solid: color-mix(in srgb, var(--app-tint-mix) 86%, var(--app-bg));
   --app-header: rgba(255, 255, 255, 0.55);
 
   /* 侧栏（浅色）= 磨砂玻璃：半透白 + 顶部高光 + 斜向反光 + 透出来的光晕 */
@@ -219,12 +225,10 @@ html.dark:root {
   --el-menu-base-level-padding: 16px;
   --el-menu-level-padding: 14px;
 
-  /* 表格 */
-  --el-table-bg-color: transparent;
-  --el-table-tr-bg-color: transparent;
-  --el-table-header-bg-color: color-mix(in srgb, var(--app-primary) 4%, transparent);
-  --el-table-row-hover-bg-color: color-mix(in srgb, var(--app-primary) 3%, transparent);
-  --el-table-border-color: color-mix(in srgb, var(--app-text-3) 16%, transparent);
+  /* 表格的 --el-table-* 不在这里映射：Element Plus 把这一整套变量声明在
+     .el-table 元素自己身上（--el-table-bg-color: var(--el-fill-color-blank) …），
+     元素上的声明优先级高于从 :root 继承下来的值，写在这是白写。
+     表格材质 / 固定列底色统一在 global.scss 的 html .el-table 里覆盖 */
 }
 
 /* 同样的透明度落在更黑的底子上会更淡，深色的描边单独压一档 */

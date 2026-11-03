@@ -30,12 +30,14 @@
   }
 
   const columns: TableColumn<MenuNode>[] = [
-    { label: "菜单名称", prop: (option) => option.row?.meta?.title || "未命名菜单", align: "left", minWidth: 240 },
-    { label: "类型", slot: "type", width: 88 },
-    { label: "权限码", slot: "permission", align: "left", minWidth: 210 },
-    { label: "排序", prop: "sort", width: 74 },
-    { label: "状态", slot: "status", width: 116 },
-    { label: "操作", slot: "action", width: 220 },
+    { label: "菜单名称", prop: (option) => option.row?.meta?.title || "未命名菜单", minWidth: 200 },
+    { label: "路由名", prop: (option) => option.row?.meta?.name || "-", minWidth: 200 },
+    { label: "类型", slot: "type", width: 80, align: "center" },
+    { label: "路由", prop: (option) => option.row?.meta?.path || "-" },
+    { label: "权限码", slot: "permission", minWidth: 200 },
+    { label: "排序", prop: "sort", width: 80, align: "center" },
+    { label: "状态", slot: "status", width: 100, align: "center" },
+    { label: "操作", slot: "action", width: 220, fixed: "right" },
   ];
 
   // ---------------- 列表 ----------------

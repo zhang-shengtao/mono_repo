@@ -498,12 +498,6 @@ html .el-menu--collapse .el-sub-menu__title {
   }
 }
 
-/* 折叠态下普通菜单项（el-menu-item）的内容会被 Element Plus 再包一层 .el-menu-tooltip__trigger：
-   它是一层 absolute + left:0 + width:100% + padding:0 var(--el-menu-base-level-padding) 的覆盖层，
-   而官方给图标定宽、居中的规则要求 li 是 .el-menu--collapse 的直接子元素；
-   菜单项外面还套了 <a>（AppLink 负责路由跳转），这条规则选不中，
-   图标就贴着左内边距起步，比分组标题（el-sub-menu__title）的图标偏左，上下不在一条竖线上。
-   这里把内边距收掉、内容居中，两种结构就都落到侧栏中轴上了 */
 html .el-menu--collapse .el-menu-item .el-menu-tooltip__trigger {
   justify-content: center;
   padding: 0 !important;
@@ -565,31 +559,26 @@ html .el-select__wrapper.is-focused {
 
 html .el-table {
   --el-table-border-color: color-mix(in srgb, var(--app-text-3) 16%, transparent);
-  background-color: transparent;
+  --el-table-bg-color: var(--app-surface-solid);
+  --el-table-tr-bg-color: var(--app-surface-solid);
+  --el-table-expanded-cell-bg-color: var(--app-surface-solid);
+  --el-table-header-bg-color: color-mix(in srgb, var(--app-primary) 4%, var(--app-surface-solid));
+  --el-table-row-hover-bg-color: color-mix(in srgb, var(--app-primary) 4%, var(--app-surface-solid));
+  --el-table-fixed-left-column: inset 10px 0 10px -10px color-mix(in srgb, var(--app-text) 12%, transparent);
+  --el-table-fixed-right-column: inset -10px 0 10px -10px color-mix(in srgb, var(--app-text) 12%, transparent);
 
   th.el-table__cell {
     font-weight: 600;
     color: var(--app-text-2);
+  }
+
+  th.el-table__cell.el-table__fixed-right-patch,
+  td.el-table__cell.el-table__fixed-right-patch {
     background-color: var(--el-table-header-bg-color);
   }
 
-  tr,
-  td.el-table__cell {
-    background-color: transparent;
-  }
-
-  // 固定列（fixed left / right）是 sticky 定位、自身没有背景，上面的透明规则会让
-  // 横向滚动时后面列的文字透出来（勾选框压在姓名上、Tag 压在地址上）。
-  // 这里给固定列补一层不透明底色，表头再叠一层主题的 header 色调。
-  tr > td.el-table__cell.el-table-fixed-column--left,
-  tr > td.el-table__cell.el-table-fixed-column--right {
-    background-color: var(--app-solid);
-  }
-
-  th.el-table__cell.el-table-fixed-column--left,
-  th.el-table__cell.el-table-fixed-column--right {
-    background-color: var(--app-solid);
-    background-image: linear-gradient(var(--el-table-header-bg-color), var(--el-table-header-bg-color));
+  &.el-table--striped .el-table__body tr.el-table__row--striped > td.el-table__cell {
+    background-color: color-mix(in srgb, var(--app-primary) 4%, var(--app-surface-solid));
   }
 
   &::before,
@@ -669,10 +658,6 @@ html .el-divider {
   border-color: color-mix(in srgb, var(--app-text-3) 18%, transparent);
 }
 
-/* ── Element Plus：变量盖不到的组件 ─────────────────────────────────────
-   .el-message / .el-notification / .el-message-box / .el-dialog 这些在组件
-   根节点上就声明了自己的 --el-* 变量（例如 .el-message 的 --el-message-bg-color），
-   在 :root 里改是不生效的，只能在同样的元素上再盖一层，顺带补上玻璃质感。 */
 html .el-dialog {
   --el-dialog-border-radius: var(--app-radius-lg);
   --el-dialog-box-shadow: var(--app-shadow-hover);
@@ -727,7 +712,6 @@ html .el-avatar {
   --el-avatar-text-color: var(--app-primary);
 }
 
-/* 分页的选中项是实心主色块 + 白字（Element 自带），只统一圆角与悬停色 */
 html .el-pagination {
   --el-pagination-border-radius: var(--app-radius-sm);
   --el-pagination-hover-color: var(--app-primary);
