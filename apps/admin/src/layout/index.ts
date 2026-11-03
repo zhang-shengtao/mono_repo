@@ -1,15 +1,10 @@
+import type { AdminProfile } from "@repo/shared";
 import type { AppMenuNode } from "@/router/dynamic";
 import { getStorage, setStorage, type JsonValue } from "@/utils/storage";
 
 export type LayoutStyle = "side" | "top" | "mix";
 export type SwitchPageStyle = "zoom" | "fadeIn" | "slide" | "rise" | "blur" | "3D" | "flip" | "reveal" | "none";
 export type AppTheme = "light" | "dark" | "auto";
-
-export interface LayoutUserInfo {
-  name: string;
-  account: string;
-  avatar?: string;
-}
 
 export interface AppTab {
   /** 页签唯一标识：route.path（不含 query/hash，/user/1 这类参数已在 path 里） */
@@ -175,7 +170,8 @@ const keepAlives = reactive<{ name: string; path: string }[]>([]);
 
 const layout = reactive({
   ...toRefs(settings),
-  userInfo: { name: "管理员", account: "admin" } as LayoutUserInfo,
+  // 占位而已：layout/index.vue 挂载时会换成 user store 里那份（同一个对象，就地更新）
+  userInfo: { user_id: 0, parent_id: 0, account: "", nickname: "管理员", status: "normal" } as AdminProfile,
 
   isMobile,
   isDark,

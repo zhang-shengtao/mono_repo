@@ -10,7 +10,7 @@
 
   const { isFullscreen, toggle: toggleFullscreen } = useFullscreen();
 
-  const avatarText = computed(() => layoutData.userInfo.name.slice(0, 1) || "U");
+  const avatarText = computed(() => layoutData.userInfo.nickname.slice(0, 1) || "U");
 
   interface HeaderAction {
     key: string;
@@ -98,7 +98,7 @@
     <el-dropdown trigger="click" @command="onCommand">
       <button type="button" class="header-user">
         <el-avatar :size="24" class="header-avatar">{{ avatarText }}</el-avatar>
-        <span class="header-user-name">{{ layoutData.userInfo.name }}</span>
+        <span class="header-user-name">{{ layoutData.userInfo.nickname }}</span>
         <my-icon name="ArrowDown" :size="12" color="var(--app-text-3)" />
       </button>
 

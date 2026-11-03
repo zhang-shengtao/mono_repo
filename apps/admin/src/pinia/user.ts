@@ -4,15 +4,17 @@ import router, { notFoundRoute } from "@/router";
 import { buildRoutes, type AppMenuNode } from "@/router/dynamic";
 import { clearToken, getToken, setToken } from "@/utils/request";
 
-export interface UserInfo {
-  name: string;
-  account: string;
-  avatar?: string;
-}
-
-const DEFAULT_USER_INFO: UserInfo = {
-  name: "管理员",
+/**
+ * 未登录 / 资料还没到位时的占位。
+ * 用 AdminProfile 而不是另造一个「界面专用」类型：顶栏、水印、权限判断读的都是这一份，
+ * 类型跟后端 /admin/auth/profile 的返回值保持一致，字段名对不上时编译期就会报错。
+ */
+const DEFAULT_PROFILE: AdminProfile = {
+  user_id: 0,
+  parent_id: 0,
   account: "",
+  nickname: "管理员",
+  status: "normal",
 };
 
 /**
@@ -40,11 +42,17 @@ function menuArr(nodes: AppMenuNode[]): AppMenuNode[] {
 export default defineStore("user", () => {
   /** 登录态的唯一真相：localStorage 里的 admin:token */
   const token = ref(getToken());
-  const profile = ref<AdminProfile | null>(null);
   const isLogged = computed(() => Boolean(token.value));
 
-  /** 顶栏 / 水印直接持有这个对象，赋值一次后随登录信息实时更新 */
-  const userInfo = reactive<UserInfo>({ ...DEFAULT_USER_INFO });
+  /**
+   * 当前登录管理员：登录人状态的唯一一份。
+   * 恒为 AdminProfile（未登录用占位），界面不必到处判空；信息变了就地改写、不换对象引用，
+   * 因为 layout 是 setup 时把引用接走的。
+   */
+  const userInfo = reactive<AdminProfile>({ ...DEFAULT_PROFILE });
+
+  /** 资料是否真的拉到了（未登录 / 拉取失败为 null），守卫据此决定要不要补拉 */
+  const profile = computed<AdminProfile | null>(() => (userInfo.user_id > 0 ? userInfo : null));
 
   /** 动态路由是否已注册：守卫据此决定要不要拉菜单 */
   const routesReady = ref(false);
@@ -55,9 +63,9 @@ export default defineStore("user", () => {
   const removers: (() => void)[] = [];
 
   function applyProfile(value: AdminProfile | null) {
-    profile.value = value;
-    userInfo.name = value?.nickname?.trim() || value?.account || DEFAULT_USER_INFO.name;
-    userInfo.account = value?.account ?? "";
+    Object.assign(userInfo, value ?? DEFAULT_PROFILE);
+    // 昵称可能是空串，顶栏显示一片空白不如退回账号
+    userInfo.nickname = value?.nickname?.trim() || value?.account || DEFAULT_PROFILE.nickname;
   }
 
   /**
