@@ -6,7 +6,6 @@
 
   const route = useRoute();
 
-  // 混合布局里当前模块没有二级菜单时侧栏是收起的，折叠按钮也就没有意义
   const hasSide = computed(() => layoutData.layoutStyle !== "top" && !(layoutData.layoutStyle === "mix" && layoutData.getModuleMenus(route.path).length === 0));
 
   const showToggle = computed(() => layoutData.isMobile || hasSide.value);

@@ -1,20 +1,3 @@
-/**
- * 全局统一请求封装（基于 ofetch）
- *
- * 外部使用示例：
- *   http.get<MenuTreeResult>("/menu/tree", { keyword: "系统" })
- *   http.post<MenuNode>("/menu/create", body)
- *   http.put<MenuNode>("/menu/update", body)
- *   http.delete<{ menus_id: number }>("/menu/1")
- *   http.post<LoginResult>("/auth/login", body, { silent: true }) // 自己展示错误，不弹 toast
- *
- * 约定：
- *   1. baseURL 取 VITE_API_BASE，dev 下由 vite 代理到后端；
- *   2. 自动带上 Authorization: Bearer <token>，令牌存 localStorage 的 admin:token；
- *   3. 统一解包后端的 { code, message, data, request_id }：code === 200 直接返回 data，
- *      否则抛 RequestError 并弹一个 ElMessage，调用方只需要 catch 住不再提示；
- *   4. 401 会清掉本地令牌并派发 admin:unauthorized 事件，由路由守卫统一跳登录。
- */
 import type { ApiResponse } from "@repo/shared";
 import { ElMessage } from "element-plus";
 import { ofetch, type FetchOptions } from "ofetch";
@@ -22,13 +5,10 @@ import { getStorage, removeStorage, setStorage } from "@/utils/storage";
 
 const base_url = import.meta.env.VITE_API_BASE;
 
-/** 令牌的本地存储键：登录成功后写入，请求层与退出逻辑读取 */
 export const TOKEN_KEY = "admin:token";
 
-/** 登录态失效时派发的事件名（请求层与路由层解耦用） */
 export const UNAUTHORIZED_EVENT = "admin:unauthorized";
 
-/** 业务错误：code 与后端的 BusinessCode 对齐（网络层失败时为 0） */
 export class RequestError extends Error {
   constructor(
     public readonly code: number,
@@ -40,7 +20,6 @@ export class RequestError extends Error {
 }
 
 export interface RequestOptions extends FetchOptions<"json"> {
-  /** 只抛错、不弹全局提示（登录页这类自己展示错误的场景用） */
   silent?: boolean;
 }
 
@@ -56,7 +35,6 @@ export function clearToken() {
   removeStorage(TOKEN_KEY);
 }
 
-/** ofetch 实例：只负责发请求 + 拼令牌，包络解包交给 request() */
 const client = ofetch.create({
   baseURL: base_url,
   timeout: 20000,
@@ -70,7 +48,6 @@ const client = ofetch.create({
   },
 });
 
-/** 非 2xx 时 ofetch 的异常里带着统一包络，把业务码和消息取出来 */
 function readErrorBody(error: unknown) {
   const body = (error as { data?: Partial<ApiResponse<unknown>> } | null)?.data;
   if (!body) return null;
@@ -80,7 +57,6 @@ function readErrorBody(error: unknown) {
   return message ? { code, message } : null;
 }
 
-/** dev 下 vite 代理连不上后端时，浏览器拿到的是 502/503/504，统一给一句能照着排查的提示 */
 const GATEWAY_STATUS = [502, 503, 504];
 
 function normalizeError(error: unknown) {

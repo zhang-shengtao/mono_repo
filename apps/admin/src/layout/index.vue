@@ -25,7 +25,6 @@
     else layoutData.tabs.push(tab);
   }
 
-  // 页签按 route.path 建：query / hash 变化不算换页，不需要新页签
   watch(
     () => route.path,
     () => {
@@ -35,7 +34,6 @@
     { immediate: true },
   );
 
-  // 开关不会触发路由变化，单独盯一下：关掉时清空历史页签，重新打开时补回当前页签
   watch(() => layoutData.isShowTabs, collectTab);
   const isMixChildless = computed(() => layoutData.layoutStyle === "mix" && !layoutData.isMobile && layoutData.getModuleMenus(route.path).length === 0);
   const rootClass = computed(() => ({

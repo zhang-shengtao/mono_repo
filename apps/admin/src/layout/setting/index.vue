@@ -43,14 +43,7 @@
       <section class="setting-group">
         <p class="setting-label">主题模式</p>
         <div class="setting-chips">
-          <button
-            v-for="item in THEME_OPTIONS"
-            :key="item.value"
-            type="button"
-            class="chip"
-            :class="{ 'is-active': layoutData.theme === item.value }"
-            @click="layoutData.theme = item.value"
-          >
+          <button v-for="item in THEME_OPTIONS" :key="item.value" type="button" class="chip" :class="{ 'is-active': layoutData.theme === item.value }" @click="layoutData.theme = item.value">
             <my-icon :name="item.icon" :size="15" />
             <span>{{ item.label }}</span>
           </button>
@@ -175,7 +168,6 @@
     color: var(--app-text-3);
   }
 
-  /* ── 页面切换动效：每个卡片自带一段循环预览 ─────────────── */
   .setting-effects {
     display: grid;
     grid-template-columns: repeat(3, 1fr);
@@ -317,7 +309,6 @@
     animation: none;
   }
 
-  // 用户系统里关掉动效时，预览停在「静态页面」而不是空白
   @media (prefers-reduced-motion: reduce) {
     .effect-page {
       animation-name: none !important;
@@ -652,10 +643,6 @@
     }
   }
 
-  /* el-color-picker 默认触发器是「4px 圆角方块 + 1px 灰描边 + 4px 内边距」，
-     里面再套一层带描边和 8px 圆角的 __color，右下还压一个白色向下箭头图标，
-     和左边 24px 的圆形色板完全不是一个形状。这里把它改成同款正圆：
-     去掉描边和内边距，色块铺满并裁圆，隐藏箭头图标，hover 缩放保持一致 */
   .setting-colors :deep(.el-color-picker) {
     width: 24px;
     height: 24px;

@@ -77,7 +77,7 @@
     }
 
     await userStore.logout();
-    // 页签与 keep-alive 列表是运行时状态，退出时一并清掉，避免登录后看到上个账号的页签
+
     layoutData.tabs = [];
     layoutData.keepAlives.splice(0, layoutData.keepAlives.length);
     ElMessage.success("已退出登录");

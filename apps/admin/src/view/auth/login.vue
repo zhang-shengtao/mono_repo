@@ -43,7 +43,6 @@
     }
   }
 
-  /** 验证码 60 秒有效且一次性消费，登录失败后必须换一张 */
   async function loadCaptcha() {
     if (captchaLoading.value) return;
     captchaLoading.value = true;
@@ -56,7 +55,6 @@
     }
   }
 
-  /** 登录后去哪儿：只接受站内地址（守卫塞进来的 redirect） */
   function redirectTarget() {
     const redirect = route.query.redirect;
     if (typeof redirect === "string" && redirect.startsWith("/") && !redirect.startsWith("//")) return redirect;
@@ -103,7 +101,6 @@
       ElMessage.success("登录成功");
       await router.replace(redirectTarget()).catch(() => {});
     } catch (err) {
-      // 请求层对登录接口是 silent 的，错误文案直接贴在表单里
       error.value = err instanceof RequestError ? err.message : "登录失败，请稍后再试";
       form.code = "";
       await loadCaptcha();
@@ -174,17 +171,7 @@
           <label class="label" for="login-account">账号</label>
           <div class="control" :class="{ 'is-error': error === '请输入账号' }">
             <my-icon name="User" :size="16" />
-            <input
-              id="login-account"
-              v-model.trim="form.account"
-              class="input"
-              type="text"
-              name="username"
-              placeholder="请输入账号"
-              autocomplete="username"
-              autocapitalize="off"
-              spellcheck="false"
-            />
+            <input id="login-account" v-model.trim="form.account" class="input" type="text" name="username" placeholder="请输入账号" autocomplete="username" autocapitalize="off" spellcheck="false" />
           </div>
         </div>
 
@@ -192,15 +179,7 @@
           <label class="label" for="login-password">密码</label>
           <div class="control" :class="{ 'is-error': error === '请输入密码' }">
             <my-icon name="Lock" :size="16" />
-            <input
-              id="login-password"
-              v-model="form.password"
-              class="input"
-              name="password"
-              :type="showPassword ? 'text' : 'password'"
-              placeholder="请输入密码"
-              autocomplete="current-password"
-            />
+            <input id="login-password" v-model="form.password" class="input" name="password" :type="showPassword ? 'text' : 'password'" placeholder="请输入密码" autocomplete="current-password" />
             <button type="button" class="peek" :title="showPassword ? '隐藏密码' : '显示密码'" @click="showPassword = !showPassword">
               <my-icon :name="showPassword ? 'View' : 'Hide'" :size="15" />
             </button>
@@ -565,7 +544,6 @@
     }
   }
 
-  /* 验证码：后端下发 SVG，直接 v-html 进来；点一下换一张 */
   .captcha {
     display: grid;
     flex-shrink: 0;

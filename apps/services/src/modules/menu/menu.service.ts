@@ -11,21 +11,9 @@ type MenuRow = typeof adminMenus.$inferSelect;
 
 const TYPE_LABELS: Record<MenuType, string> = { directory: "目录", page: "页面", button: "按钮" };
 
-/**
- * 菜单服务：admin_menus 的全部业务规则都收在这里。
- *
- * 三条硬规则（也是前端的表单约束）：
- *   1. directory 只做分组：不能绑定 permission，上级只能是顶级或目录；
- *   2. page 只存路由配置：上级只能是顶级或目录，子级只能是 button；
- *   3. button 即权限：必须有 permission，上级必须是 page。
- *
- * permission 与 code.bind_menu_id 是同一关系的两个方向，凡是写菜单都必须同步，否则 jwt 插件的
- * 权限校验（permissions ⋈ code.bind_menu_id）会读到漂移的数据。
- */
 export default class MenuService {
   constructor(private readonly fastify: FastifyInstance) {}
 
-  /** 菜单树：meta 原样返回；按类型和启停状态过滤时保留祖先链 */
   async tree(query: MenuTreeQuery): Promise<MenuTreeResult> {
     const rows = await this.fastify.db.select().from(adminMenus).orderBy(desc(adminMenus.sort), asc(adminMenus.menus_id));
     const matched = rows.filter((row) => {
@@ -37,12 +25,6 @@ export default class MenuService {
     return { list: buildTree(rows, keepWithAncestors(rows, matched)), total: rows.length };
   }
 
-  /**
-   * 当前登录人可见的菜单树（含按钮节点）：动态路由与按钮权限的唯一数据源。
-   *
-   * 超管（parent_id = 0）拿全量启用中的菜单；其他管理员取 permissions 里未禁用的 menus_id，
-   * 并补齐祖先链 —— 祖先链上只要有一个节点被禁用，这一支就整支丢弃，否则子级会被当成顶级节点。
-   */
   async routesFor(operator: AdminUser): Promise<AdminRouteResult> {
     const rows = await this.fastify.db.select().from(adminMenus).orderBy(desc(adminMenus.sort), asc(adminMenus.menus_id));
     const active = rows.filter((row) => !row.is_disabled);
@@ -56,13 +38,15 @@ export default class MenuService {
         .select({ menus_id: permissions.menus_id })
         .from(permissions)
         .where(and(eq(permissions.user_id, operator.user_id), eq(permissions.is_disabled, false)));
-      visible = withAncestors(grants.map((row) => row.menus_id), activeById);
+      visible = withAncestors(
+        grants.map((row) => row.menus_id),
+        activeById,
+      );
     }
 
     return { list: buildRouteTree(active.filter((row) => visible.has(row.menus_id))) };
   }
 
-  /** 新增菜单：校验通过后写库，并在同一事务里把权限码反向绑到新菜单 */
   async create(body: MenuBody): Promise<MenuNode> {
     const validated = await this.validate(body, null);
 
@@ -77,10 +61,6 @@ export default class MenuService {
     return toNode(created);
   }
 
-  /**
-   * 编辑菜单（整行）。
-   * 表格里「启用 / 禁用」开关也走这里，前端用整行数据拼 body，服务端只认一份规则。
-   */
   async update(body: UpdateMenuBody): Promise<MenuNode> {
     const current = await this.findOrFail(body.menus_id);
     const childCount = await this.countChildren(current.menus_id);
@@ -93,7 +73,6 @@ export default class MenuService {
     const updated = await this.fastify.db.transaction(async (tx) => {
       const [row] = await tx.update(adminMenus).set(validated).where(eq(adminMenus.menus_id, current.menus_id)).returning();
 
-      // 换绑/解绑：旧码只在「确实绑在本菜单上」时解绑，避免误清别人的绑定
       if (current.permission && current.permission !== row.permission) {
         await tx
           .update(codeTable)
@@ -109,7 +88,6 @@ export default class MenuService {
     return toNode(updated);
   }
 
-  /** 删除菜单：有子节点拒绝；成功时清理用户授权行与权限码反向绑定 */
   async remove(menus_id: number): Promise<{ menus_id: number }> {
     await this.findOrFail(menus_id);
 
@@ -127,7 +105,6 @@ export default class MenuService {
     return { menus_id };
   }
 
-  /** 校验菜单关系与权限码；meta 由前端组装，服务端不修改其内容 */
   private async validate(body: MenuBody, current: MenuRow | null) {
     const selfId = current?.menus_id ?? null;
     const parentId = body.parent_id ?? 0;
@@ -153,7 +130,6 @@ export default class MenuService {
     };
   }
 
-  /** 父子类型矩阵：目录/页面挂顶级或目录，按钮只能挂页面 */
   private assertParentType(type: MenuType, parent: MenuRow | null) {
     if (type === "button") {
       if (!parent) throw new AppError(BusinessCode.PARAM_ERROR, "按钮必须挂在页面下，请选择上级页面");
@@ -169,7 +145,6 @@ export default class MenuService {
     }
   }
 
-  /** 防环：沿着「上级」往上爬，撞到自己说明把节点挂进了自己的子树 */
   private async assertNoCycle(selfId: number, parentId: number) {
     const rows = await this.fastify.db.select({ menus_id: adminMenus.menus_id, parent_id: adminMenus.parent_id }).from(adminMenus);
     const parentOf = new Map(rows.map((row) => [row.menus_id, row.parent_id]));
@@ -183,7 +158,6 @@ export default class MenuService {
     }
   }
 
-  /** 权限码：目录禁绑、按钮必绑、页面可选；并且必须存在、启用中、未被别的菜单占用 */
   private async resolvePermission(type: MenuType, permission: string | null, selfId: number | null): Promise<string | null> {
     const value = permission?.trim() || null;
 
@@ -199,8 +173,6 @@ export default class MenuService {
     const [codeRow] = await this.fastify.db.select().from(codeTable).where(eq(codeTable.code, value)).limit(1);
     if (!codeRow) throw new AppError(BusinessCode.PARAM_ERROR, `权限码 ${value} 不存在，请先在权限码管理里创建`);
 
-    // 权限码在管理页可以被禁用；本菜单已经绑着的那个码允许原样保留（否则禁用后连菜单名称都改不了），
-    // 但禁用的码不能被新绑定，也不能从别的菜单抢过来
     const keepsOwnBinding = selfId !== null && codeRow.bind_menu_id === selfId;
     if (codeRow.is_disabled && !keepsOwnBinding) throw new AppError(BusinessCode.PARAM_ERROR, `权限码 ${value} 已被禁用，不能绑定`);
     if (codeRow.bind_menu_id !== null && codeRow.bind_menu_id !== selfId) {
@@ -229,10 +201,8 @@ export default class MenuService {
     const rows = await this.fastify.db.select({ menus_id: adminMenus.menus_id }).from(adminMenus).where(eq(adminMenus.parent_id, menus_id));
     return rows.length;
   }
-
 }
 
-/** 数据库行 → 树节点（children 由 buildTree 挂） */
 function toNode(row: MenuRow): MenuNode {
   return {
     menus_id: row.menus_id,
@@ -247,7 +217,6 @@ function toNode(row: MenuRow): MenuNode {
   };
 }
 
-/** 命中节点 + 其全部祖先，保证过滤后树仍从顶级画下来 */
 function keepWithAncestors(rows: MenuRow[], matched: MenuRow[]) {
   const parentOf = new Map(rows.map((row) => [row.menus_id, row.parent_id]));
   const keep = new Set<number>();
@@ -262,7 +231,6 @@ function keepWithAncestors(rows: MenuRow[], matched: MenuRow[]) {
   return keep;
 }
 
-/** 按 parent_id 组装树；同级顺序沿用查询顺序（sort desc, menus_id asc） */
 function buildTree(rows: MenuRow[], keep: Set<number>): MenuNode[] {
   const visible = rows.filter((row) => keep.has(row.menus_id));
   const nodes = new Map<number, MenuNode>();
@@ -281,13 +249,6 @@ function buildTree(rows: MenuRow[], keep: Set<number>): MenuNode[] {
   return roots;
 }
 
-/**
- * 命中节点 + 祖先链。
- *
- * 祖先只补「目录」：目录是分组，不补的话子页面会变成顶级节点；
- * 但如果祖先是个**页面**且本身没授权，这一支要整支丢掉 —— 否则「只给了按钮没给页面」会把页面也带出来。
- * 祖先链上只要有一个节点被禁用，同样整支丢弃。
- */
 function withAncestors(menus_id: number[], activeById: Map<number, MenuRow>) {
   const visible = new Set<number>();
   const granted = new Set(menus_id);
@@ -318,7 +279,6 @@ function withAncestors(menus_id: number[], activeById: Map<number, MenuRow>) {
   return visible;
 }
 
-/** 数据库行 → 「我的菜单」节点（不带时间戳与启停：能下发的都是启用中的） */
 function toAuthNode(row: MenuRow): AuthMenuNode {
   return {
     menus_id: row.menus_id,
@@ -330,7 +290,6 @@ function toAuthNode(row: MenuRow): AuthMenuNode {
   };
 }
 
-/** 按 parent_id 组装「我的菜单」树；顺序沿用查询顺序（sort desc, menus_id asc） */
 function buildRouteTree(rows: MenuRow[]): AuthMenuNode[] {
   const nodes = new Map<number, AuthMenuNode>();
   rows.forEach((row) => nodes.set(row.menus_id, toAuthNode(row)));

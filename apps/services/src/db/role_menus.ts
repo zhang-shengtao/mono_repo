@@ -2,15 +2,6 @@ import { boolean, index, integer, pgTable, primaryKey } from "drizzle-orm/pg-cor
 import { adminMenus } from "./admin_menus";
 import { roles } from "./roles";
 
-/**
- * 角色包含哪些菜单（角色的「定义」）。
- *
- * 和 permissions 的分工：
- *   role_menus  角色 → 菜单，是模板本身，与具体用户无关，所以角色建好还没分配时也有数据
- *   permissions 用户 → 菜单 + 是哪个角色给的，是分配关系，由用户管理侧维护
- *
- * 纯关联表，不记审计字段：谁改的记在 roles.updated_by 上。
- */
 export const roleMenus = pgTable(
   "role_menus",
   {

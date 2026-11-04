@@ -1,10 +1,4 @@
 <script setup lang="ts">
-  /**
-   * 404 页面不存在
-   *
-   * 路由里与 /login 同级、不在布局壳内，所以页面自己铺满一屏。
-   * 该组件同时兜底 /:pathMatch(.*)*，route.fullPath 就是用户真正敲错的那个地址。
-   */
   defineOptions({ name: "NotFound" });
 
   const route = useRoute();
@@ -21,7 +15,6 @@
   }
 
   function goBack() {
-    // 直接打开 /404（刷新、外链）时没有可回退的历史，回落到首页，避免把用户弹出应用
     const state = window.history.state as { back?: string | null } | null;
     if (state?.back) {
       router.back();
@@ -109,7 +102,6 @@
 
 <style lang="scss" scoped>
   .error-page {
-    /* 404 沿用品牌色：靛蓝 → 紫 → 青，和 403 的危险色区分开 */
     --code-1: var(--app-primary);
     --code-2: color-mix(in srgb, var(--app-primary) 55%, #8b5cf6);
     --code-3: color-mix(in srgb, var(--app-primary) 45%, #22d3ee);

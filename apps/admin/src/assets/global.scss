@@ -54,7 +54,6 @@ a {
     background-clip: padding-box;
   }
 
-  // 鼠标贴到滑块上时变宽变亮，拖动时再深一档
   &::-webkit-scrollbar-thumb:hover {
     border-width: 2px;
     background-color: var(--app-scrollbar-thumb-hover);
@@ -89,7 +88,6 @@ html * {
   }
 }
 
-/* Element Plus 自绘滚动条（下拉、表格、选择器等）跟随同一套视觉 */
 html .el-scrollbar {
   --el-scrollbar-opacity: 1;
   --el-scrollbar-hover-opacity: 1;
@@ -196,9 +194,6 @@ html .el-scrollbar__thumb {
   }
 }
 
-/* ── 页面切换动效：与「外观设置」里的预览一一对应 ───────────── */
-
-/* 1. 缩放淡入 */
 .page-zoom-enter-active {
   transition:
     opacity 240ms var(--app-ease),
@@ -223,7 +218,6 @@ html .el-scrollbar__thumb {
   transform: scale(1.012) translateY(-8px);
 }
 
-/* 2. 纯淡入 */
 .page-fade-enter-active,
 .page-fade-leave-active {
   will-change: opacity;
@@ -242,7 +236,6 @@ html .el-scrollbar__thumb {
   opacity: 0;
 }
 
-/* 3. 左右滑动 */
 .page-slide-enter-active {
   transition:
     opacity 200ms linear,
@@ -267,7 +260,6 @@ html .el-scrollbar__thumb {
   transform: translate3d(-36px, 0, 0);
 }
 
-/* 4. 底部上浮 */
 .page-rise-enter-active {
   transition:
     opacity 200ms linear,
@@ -292,7 +284,6 @@ html .el-scrollbar__thumb {
   transform: translate3d(0, -24px, 0);
 }
 
-/* 5. 模糊聚焦 */
 .page-blur-enter-active,
 .page-blur-leave-active {
   will-change: opacity, filter, transform;
@@ -327,7 +318,6 @@ html .el-scrollbar__thumb {
   filter: blur(8px);
 }
 
-/* 6. 3D 翻转 */
 .page-3d-enter-active,
 .page-3d-leave-active {
   backface-visibility: hidden;
@@ -357,7 +347,6 @@ html .el-scrollbar__thumb {
   transform: perspective(1200px) rotateY(10deg) translate3d(-32px, 0, 0) scale(0.98);
 }
 
-/* 7. 翻页折叠 */
 .page-flip-enter-active,
 .page-flip-leave-active {
   backface-visibility: hidden;
@@ -387,7 +376,6 @@ html .el-scrollbar__thumb {
   transform: perspective(1400px) rotateX(12deg) translate3d(0, -20px, 0);
 }
 
-/* 8. 幕帘揭示 */
 .page-reveal-enter-active,
 .page-reveal-leave-active {
   will-change: clip-path;

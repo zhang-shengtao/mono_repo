@@ -9,7 +9,6 @@
   const canLeft = ref(false);
   const canRight = ref(false);
 
-  // 页签身份统一用 route.path（不含 query/hash）
   function isActive(tab: AppTab) {
     return tab.path === route.path;
   }
@@ -81,7 +80,7 @@
 
         const wasActive = isActive(tab);
         layoutData.tabs.splice(index, 1);
-        // 关掉当前页签时优先切到右边那个，没有就往左退一格
+
         const next = layoutData.tabs[index] ?? layoutData.tabs[index - 1];
         if (wasActive && next) router.push(next.path);
         break;
@@ -104,8 +103,7 @@
       }
       case "closeAll": {
         const first = layoutData.tabs[0];
-        // 关全部后回到第一个页签；当前就在第一个页签时 router.push 同地址是重复导航、页签不会重建，
-        // 所以直接把它留下，避免页签栏空掉
+
         layoutData.tabs = first && first.path === route.path ? [first] : [];
         if (first && first.path !== route.path) router.push(first.path);
         break;

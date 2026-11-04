@@ -10,14 +10,12 @@
 
   type AnyRow = Record<PropertyKey, any>;
 
-  /** 组件自己的单元格作用域（给 prop / formatter 用） */
   interface OwnCellScope<Row = AnyRow> {
     row: Row;
     column: any;
     $index: number;
   }
 
-  /** 组件自己新增的私有键 */
   interface OwnColumnProps<Row extends AnyRow = AnyRow> {
     children?: TableColumn<Row>[];
     slot?: string;

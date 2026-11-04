@@ -12,7 +12,6 @@ import {
 import type { RouteAuthConfig } from "@/types/auth";
 import { PERMISSIONS } from "@/permissions";
 
-/** 菜单接口会主动返回的错误码：参数错、未登录、无权限、菜单不存在、权限码冲突 */
 const menuErrorResponses = {
   400: errorResponseSchema,
   401: errorResponseSchema,

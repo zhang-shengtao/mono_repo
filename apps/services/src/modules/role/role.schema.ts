@@ -13,7 +13,6 @@ import {
 import type { RouteAuthConfig } from "@/types/auth";
 import { PERMISSIONS } from "@/permissions";
 
-/** 角色接口会主动返回的错误码：参数错、未登录、无权限、角色不存在、名称冲突、服务器异常 */
 const roleErrorResponses = {
   400: errorResponseSchema,
   401: errorResponseSchema,
@@ -23,11 +22,6 @@ const roleErrorResponses = {
   500: errorResponseSchema,
 };
 
-/**
- * 角色列表（只读）。
- * 角色是有限集合（几十个），一次拉全量、前端本地过滤；服务端仍支持 keyword / is_disabled，
- * 供其他调用方按需使用。每行带上 role_menus 的菜单 ID 与 permissions 的已分配用户数。
- */
 export const roleListRouteOptions = {
   schema: {
     tags: ["系统角色"],
@@ -42,10 +36,6 @@ export const roleListRouteOptions = {
   config: { auth: "admin", permission: PERMISSIONS.SYSTEM_ROLE_GET } satisfies RouteAuthConfig,
 };
 
-/**
- * 角色表单的菜单候选范围（只读）。
- * 超管拿到全量菜单且 can_transmit = true；二级管理员只拿到自己「可下放」的菜单，can_transmit = false。
- */
 export const roleMenuScopeRouteOptions = {
   schema: {
     tags: ["系统角色"],
@@ -59,10 +49,6 @@ export const roleMenuScopeRouteOptions = {
   config: { auth: "admin", permission: PERMISSIONS.SYSTEM_ROLE_GET } satisfies RouteAuthConfig,
 };
 
-/**
- * 新增角色：先写 roles，再在同一事务里写 role_menus。
- * 角色的归属人取当前登录人（created_by），同一归属人下角色名不重复。
- */
 export const roleCreateRouteOptions = {
   schema: {
     tags: ["系统角色"],
@@ -77,11 +63,6 @@ export const roleCreateRouteOptions = {
   config: { auth: "admin", permission: PERMISSIONS.SYSTEM_ROLE_ADD } satisfies RouteAuthConfig,
 };
 
-/**
- * 编辑角色：整行覆盖。
- * 表格里的「启用 / 禁用」开关也走这里，前端用整行数据拼 body，服务端只认一份规则。
- * 角色减掉的菜单，会同时收回已经分配给用户的对应权限；transmit_menus_id 会同步到 permissions.is_transmit。
- */
 export const roleUpdateRouteOptions = {
   schema: {
     tags: ["系统角色"],
@@ -96,7 +77,6 @@ export const roleUpdateRouteOptions = {
   config: { auth: "admin", permission: PERMISSIONS.SYSTEM_ROLE_PUT } satisfies RouteAuthConfig,
 };
 
-/** 删除角色：一并清理 role_menus 与该角色的分配关系（permissions） */
 export const roleDeleteRouteOptions = {
   schema: {
     tags: ["系统角色"],

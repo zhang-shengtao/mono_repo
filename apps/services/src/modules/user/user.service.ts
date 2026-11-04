@@ -1,17 +1,6 @@
 import { and, asc, eq, ilike, inArray, ne, or, sql, type SQL } from "drizzle-orm";
 import { BusinessCode } from "@repo/shared";
-import type {
-  CreateUserBody,
-  RoleOption,
-  UpdateUserBody,
-  UserItem,
-  UserListQuery,
-  UserListResult,
-  UserMenuGrant,
-  UserPermissionBody,
-  UserPermissionDetail,
-  UserRole,
-} from "@repo/shared";
+import type { CreateUserBody, RoleOption, UpdateUserBody, UserItem, UserListQuery, UserListResult, UserMenuGrant, UserPermissionBody, UserPermissionDetail, UserRole } from "@repo/shared";
 import { AppError } from "@/core/app_error";
 import { menuTitleOf, resolveMenuScope, transmittableMenuIds } from "@/core/menu-scope";
 import { adminMenus } from "@/db/admin_menus";
@@ -22,7 +11,6 @@ import { roles } from "@/db/roles";
 import { hashPassword } from "@/utils/password";
 import { sessionSetKey } from "@/utils/session";
 
-/** 用户表的对外投影：密码永不下发 */
 const userColumns = {
   user_id: adminUser.user_id,
   parent_id: adminUser.parent_id,
@@ -34,23 +22,10 @@ const userColumns = {
   updated_at: adminUser.updated_at,
 };
 
-/**
- * 用户服务：管理员账号的增删改查 + 权限分配。
- *
- * 四条硬规则：
- *   1. 只管下级：超管能管任意账号（不含自己），其他管理员只管直属下级，同级 / 上级一律拒绝；
- *   2. 账号全局唯一，软删除（status = deleted）后账号仍占用，避免历史权限记录串号；
- *   3. 禁用 / 删除立刻踢掉该账号的所有会话（Redis 里按账号存了一份 uid 集合）；
- *   4. 权限分配按全量覆盖写 permissions：菜单必须落在所选角色的菜单并集里，
- *      非超管还必须落在自己 is_transmit = true 的范围内；is_transmit 只能标在自己可下放的菜单上，
- *      所以「还能不能再往下传」始终由上一级决定 —— 下放可以多级，但每级都要上级先给。
- */
 export default class UserService {
   constructor(private readonly fastify: FastifyInstance) {}
 
-  /** 账号列表：超管看全部（不含自己），其他管理员只看直属下级；一次拉全量，附上角色与菜单数 */
   async list(query: UserListQuery, operator: AdminUser): Promise<UserListResult> {
-    // 自己那一行不列出来：对自己的账号点编辑 / 分配权限没有意义，也不该允许
     const filters: SQL[] = [ne(adminUser.status, "deleted"), ne(adminUser.user_id, operator.user_id)];
     if (operator.parent_id !== 0) filters.push(eq(adminUser.parent_id, operator.user_id));
 
@@ -69,7 +44,8 @@ export default class UserService {
       .orderBy(asc(adminUser.user_id));
 
     const userIds = rows.map((row) => row.user_id);
-    const grants = userIds.length > 0 ? await this.fastify.db.select({ user_id: permissions.user_id, roles_id: permissions.roles_id }).from(permissions).where(inArray(permissions.user_id, userIds)) : [];
+    const grants =
+      userIds.length > 0 ? await this.fastify.db.select({ user_id: permissions.user_id, roles_id: permissions.roles_id }).from(permissions).where(inArray(permissions.user_id, userIds)) : [];
     const roleRows = await this.fastify.db.select({ roles_id: roles.roles_id, roles_name: roles.roles_name }).from(roles);
     const roleName = new Map(roleRows.map((row) => [row.roles_id, row.roles_name]));
 
@@ -94,7 +70,6 @@ export default class UserService {
     };
   }
 
-  /** 新增直属下级：账号唯一、密码哈希后落库，初始状态 normal */
   async create(body: CreateUserBody, operator: AdminUser): Promise<UserItem> {
     const account = body.account.trim();
 
@@ -117,7 +92,6 @@ export default class UserService {
     return this.detail(row.user_id);
   }
 
-  /** 编辑直属下级：账号不可改；密码留空表示不动 */
   async update(body: UpdateUserBody, operator: AdminUser): Promise<UserItem> {
     const target = await this.findTarget(body.user_id, operator);
 
@@ -130,13 +104,11 @@ export default class UserService {
 
     await this.fastify.db.update(adminUser).set(values).where(eq(adminUser.user_id, target.user_id));
 
-    // 禁用后令牌要立刻失效，否则旧会话还能继续用
     if (body.status === "disabled") await this.kickSessions(target.user_id);
 
     return this.detail(target.user_id);
   }
 
-  /** 删除直属下级：软删除 + 清授权 + 踢会话；有下级时拒绝，避免留下孤儿账号 */
   async remove(user_id: number, operator: AdminUser): Promise<{ user_id: number }> {
     const target = await this.findTarget(user_id, operator);
 
@@ -149,7 +121,10 @@ export default class UserService {
 
     await this.fastify.db.transaction(async (tx) => {
       await tx.delete(permissions).where(eq(permissions.user_id, target.user_id));
-      await tx.update(adminUser).set({ status: "deleted", deleted_at: sql`now()` }).where(eq(adminUser.user_id, target.user_id));
+      await tx
+        .update(adminUser)
+        .set({ status: "deleted", deleted_at: sql`now()` })
+        .where(eq(adminUser.user_id, target.user_id));
     });
 
     await this.kickSessions(target.user_id);
@@ -157,7 +132,6 @@ export default class UserService {
     return { user_id: target.user_id };
   }
 
-  /** 权限详情：已分配的授权 + 可分配的角色 + 可分配的菜单范围 */
   async permissionDetail(user_id: number, operator: AdminUser): Promise<UserPermissionDetail> {
     await this.findTarget(user_id, operator);
 
@@ -167,9 +141,7 @@ export default class UserService {
       resolveMenuScope(this.fastify, operator),
     ]);
 
-    const menus: UserMenuGrant[] = permRows
-      .map((row) => ({ menus_id: row.menus_id, roles_id: row.roles_id, is_transmit: row.is_transmit }))
-      .sort((a, b) => a.menus_id - b.menus_id);
+    const menus: UserMenuGrant[] = permRows.map((row) => ({ menus_id: row.menus_id, roles_id: row.roles_id, is_transmit: row.is_transmit })).sort((a, b) => a.menus_id - b.menus_id);
 
     return {
       user_id,
@@ -180,10 +152,6 @@ export default class UserService {
     };
   }
 
-  /**
-   * 保存权限（全量覆盖）。
-   * 每条授权的来源角色取「roles_id 里第一个包含该菜单的角色」，和 permissions 的 PK（user_id + menus_id）对齐。
-   */
   async savePermission(body: UserPermissionBody, operator: AdminUser): Promise<UserPermissionDetail> {
     await this.findTarget(body.user_id, operator);
 
@@ -192,7 +160,6 @@ export default class UserService {
     const deniedRole = roleIds.filter((id) => !assignable.has(id));
     if (deniedRole.length > 0) throw new AppError(BusinessCode.FORBIDDEN, `角色 ${deniedRole.join("、")} 不能分配给别人，请刷新后重试`);
 
-    // 菜单 → 来源角色：按角色顺序先到先得
     const owner = new Map<number, number>();
     for (const roles_id of roleIds) {
       for (const menus_id of assignable.get(roles_id)!.menus_id) {
@@ -207,7 +174,6 @@ export default class UserService {
       throw new AppError(BusinessCode.PARAM_ERROR, `菜单「${titles.join("」「")}」不在所选角色的范围里，请先勾上对应角色`);
     }
 
-    // 非超管只能分配自己手上「可下放」的菜单
     const grantable = operator.parent_id === 0 ? null : new Set(await transmittableMenuIds(this.fastify, operator.user_id));
     if (grantable) {
       const denied = menus_id.filter((id) => !grantable.has(id));
@@ -217,12 +183,8 @@ export default class UserService {
       }
     }
 
-    // 可下放标记：只能打在本次真正分配出去的菜单上；非超管还要落在自己「可下放」的范围内。
-    // 「还能不能再往下传」由此始终由上一级决定 —— 上级没给你可下放，你就传不下去。
     const grantedMenus = new Set(menus_id);
-    const transmit = new Set(
-      body.transmit_menus_id.filter((id) => grantedMenus.has(id) && (grantable === null || grantable.has(id))),
-    );
+    const transmit = new Set(body.transmit_menus_id.filter((id) => grantedMenus.has(id) && (grantable === null || grantable.has(id))));
 
     await this.fastify.db.transaction(async (tx) => {
       await tx.delete(permissions).where(eq(permissions.user_id, body.user_id));
@@ -244,7 +206,6 @@ export default class UserService {
     return this.permissionDetail(body.user_id, operator);
   }
 
-  /** 单个用户的对外投影 */
   private async detail(user_id: number): Promise<UserItem> {
     const [row] = await this.fastify.db.select(userColumns).from(adminUser).where(eq(adminUser.user_id, user_id)).limit(1);
     if (!row) throw new AppError(BusinessCode.NOT_FOUND, "用户不存在，请刷新后重试");
@@ -256,11 +217,6 @@ export default class UserService {
     return { ...row, roles: roleRows, menus_count: grants.length };
   }
 
-  /**
-   * 能分配给下级的角色：
-   * 超管看全部启用中的角色；其他管理员只看自己建的（角色归属人 = 自己）。
-   * 这样二级管理员不会拿到一个菜单范围超出他自己权限的角色。
-   */
   private async assignableRoles(operator: AdminUser): Promise<RoleOption[]> {
     const rows = await this.fastify.db
       .select({ roles_id: roles.roles_id, roles_name: roles.roles_name })
@@ -279,11 +235,6 @@ export default class UserService {
     return rows.map((row) => ({ ...row, menus_id: (menusByRole.get(row.roles_id) ?? []).sort((a, b) => a - b) }));
   }
 
-  /**
-   * 取目标用户并校验管理权。
-   * 超管能管任意账号（含别人建的下级），但一律排除自己 —— 改自己的状态 / 权限会把自己锁在门外；
-   * 其他管理员只管直属下级，同级和上级都碰不到。
-   */
   private async findTarget(user_id: number, operator: AdminUser) {
     const [row] = await this.fastify.db.select().from(adminUser).where(eq(adminUser.user_id, user_id)).limit(1);
     if (!row || row.status === "deleted") throw new AppError(BusinessCode.NOT_FOUND, "用户不存在，请刷新后重试");
@@ -292,13 +243,16 @@ export default class UserService {
     return row;
   }
 
-  /** 禁用 / 删除时清掉该账号的所有会话：Redis 里按账号存了一份 uid 集合 */
   private async kickSessions(user_id: number) {
     const key = sessionSetKey(user_id);
     const uids = await this.fastify.redis.smembers(key);
     if (uids.length === 0) return;
 
-    await this.fastify.redis.multi().del(...uids).del(key).exec();
+    await this.fastify.redis
+      .multi()
+      .del(...uids)
+      .del(key)
+      .exec();
   }
 
   private async menuTitles(menus_id: number[]) {

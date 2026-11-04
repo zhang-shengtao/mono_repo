@@ -2,13 +2,8 @@ import { adminProfileSchema, adminRouteResultSchema, captchaResultSchema, errorR
 import type { RouteAuthConfig } from "@/types/auth";
 import { z } from "zod/v4";
 
-/**
- * 认证接口的「形状」已经下沉到 @repo/shared（admin-auth.ts）：
- * 这里只保留 Fastify 侧的东西——标签、摘要、错误码、权限声明。
- */
 const emptyResponseSchema = responseSchema(z.object({}));
 
-/** 登录相关接口会主动返回这些错误码，其余按通用错误处理 */
 const authErrorResponses = {
   400: errorResponseSchema,
   401: errorResponseSchema,
@@ -68,10 +63,6 @@ export const logoutRouteOptions = {
   config: { auth: "admin" } satisfies RouteAuthConfig,
 };
 
-/**
- * 当前登录人可见的菜单（动态路由 + 按钮权限的数据源）。
- * 不绑权限码：能登录就能拿到「自己能看什么」，否则二级管理员连菜单都拉不出来。
- */
 export const routesRouteOptions = {
   schema: {
     tags: ["管理员认证"],

@@ -12,8 +12,7 @@ export const roles = pgTable(
     updated_by: integer("updated_by")
       .references(() => adminUser.user_id)
       .notNull(), // 最后修改人
-    // 角色的归属人：角色是「谁建的」就归谁管，不再单独存一份 user_id。
-    // 角色本身可复用（菜单集合在 role_menus），分配给谁由 permissions 记录。
+
     created_by: integer("created_by")
       .references(() => adminUser.user_id)
       .notNull(),

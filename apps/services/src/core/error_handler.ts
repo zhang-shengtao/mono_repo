@@ -4,7 +4,6 @@ import { BusinessCode } from "@repo/shared";
 import type { ZodFastifySchemaValidationError } from "fastify-type-provider-zod";
 import { hasZodFastifySchemaValidationErrors, isResponseSerializationError } from "fastify-type-provider-zod";
 
-/** 框架/底层抛出的 HTTP 状态码 → 业务码 */
 const STATUS_CODE_BUSINESS_CODE: Record<number, BusinessCode> = {
   400: BusinessCode.PARAM_ERROR,
   401: BusinessCode.UNAUTHORIZED,
@@ -67,7 +66,6 @@ export function registerErrorHandler(app: FastifyInstance) {
   });
 }
 
-/** 请求日志兜底用的错误标识：优先取框架错误码（如 FST_REQ_FILE_TOO_LARGE） */
 function readErrorCode(error: unknown): string {
   if (typeof error === "object" && error !== null) {
     const code = (error as { code?: unknown }).code;

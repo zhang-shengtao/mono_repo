@@ -12,7 +12,6 @@
 
   const activePath = computed(() => layoutData.getActiveTop(route.path)?.path ?? route.path);
 
-  /** 一级菜单悬停下拉：只记录当前展开的那一项 */
   const openPath = ref("");
   let closeTimer: ReturnType<typeof setTimeout> | undefined;
 
@@ -62,12 +61,10 @@
   }
 
   function onPopoverClick(event: MouseEvent) {
-    // 只有点到真正会跳转的菜单项才收起；点二级标题只是展开/收起分组
     const clickedItem = (event.target as HTMLElement | null)?.closest(".el-menu-item");
     if (clickedItem) closeMenu();
   }
 
-  // 路由变化（含点击下拉里的子菜单）后收起下拉
   watch(
     () => route.fullPath,
     () => closeMenu(),
@@ -178,7 +175,6 @@
 </style>
 
 <style lang="scss">
-  /* 下拉面板被 teleport 到 body，样式必须全局写 */
   .app-top-popover.el-popover.el-popper {
     min-width: 0;
     padding: 6px;

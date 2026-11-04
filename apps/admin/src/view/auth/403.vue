@@ -1,11 +1,4 @@
 <script setup lang="ts">
-  /**
-   * 403 无访问权限
-   *
-   * 路由里与 /login 同级、不在布局壳内，所以页面自己铺满一屏。
-   * 被拦截的地址优先取 ?from= / ?redirect=（守卫或网关跳转时带上），
-   * 没有就回落到当前 fullPath，方便用户把地址原样反馈给管理员。
-   */
   defineOptions({ name: "Forbidden" });
 
   const route = useRoute();
@@ -21,7 +14,6 @@
   }
 
   function goBack() {
-    // 直接打开 /403（刷新、外链）时没有可回退的历史，回落到首页，避免把用户弹出应用
     const state = window.history.state as { back?: string | null } | null;
     if (state?.back) {
       router.back();
@@ -105,7 +97,6 @@
 
 <style lang="scss" scoped>
   .error-page {
-    /* 403 用危险色系，和 404 的品牌色区分开 */
     --code-1: color-mix(in srgb, var(--app-danger) 82%, var(--app-primary));
     --code-2: var(--app-danger);
     --code-3: color-mix(in srgb, var(--app-warning) 72%, var(--app-danger));

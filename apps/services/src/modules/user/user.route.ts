@@ -1,12 +1,5 @@
 import UserService from "./user.service";
-import {
-  userCreateRouteOptions,
-  userDeleteRouteOptions,
-  userListRouteOptions,
-  userPermissionGetRouteOptions,
-  userPermissionPutRouteOptions,
-  userUpdateRouteOptions,
-} from "./user.schema";
+import { userCreateRouteOptions, userDeleteRouteOptions, userListRouteOptions, userPermissionGetRouteOptions, userPermissionPutRouteOptions, userUpdateRouteOptions } from "./user.schema";
 
 export default async function userRoutes(fastify: FastifyInstance) {
   const userService = new UserService(fastify);
@@ -27,7 +20,6 @@ export default async function userRoutes(fastify: FastifyInstance) {
     return reply.success(await userService.remove(request.params.user_id, request.user!));
   });
 
-  // 权限：读一份「已分配 + 可分配」的快照，保存时按全量覆盖写 permissions
   fastify.get("/admin/user/:user_id/permission", { ...userPermissionGetRouteOptions }, async function (request, reply) {
     return reply.success(await userService.permissionDetail(request.params.user_id, request.user!));
   });

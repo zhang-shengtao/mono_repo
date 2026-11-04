@@ -7,7 +7,6 @@
   import type { RouteMenuProps } from "@/utils/perms";
   defineOptions({ name: "systemMenu" });
 
-  // 动态路由会把当前菜单节点与按钮节点作为 props 传进来
   defineProps<RouteMenuProps>();
 
   type BaseColumn = InstanceType<GlobalComponents["MyTable"]>["$props"]["columns"][number];
@@ -27,7 +26,7 @@
   const TYPE_LABEL = Object.fromEntries(TYPE_OPTIONS.map((item) => [item.value, item.label])) as Record<MenuType, string>;
   const TYPE_TAG = Object.fromEntries(TYPE_OPTIONS.map((item) => [item.value, item.tag])) as Record<MenuType, TagType>;
   const META_FIELD_NAMES = new Set(["title", "path", "keepAlive", "isScreen", "hidden", "target", "redirect"]);
-  /** 表格插槽里的 row 是 any，收口成两个取值函数，模板里就不必索引联合类型 */
+
   function typeLabel(type: MenuType) {
     return TYPE_LABEL[type] ?? "未知";
   }
@@ -45,7 +44,6 @@
     { label: "操作", slot: "action", width: 220, fixed: "right" },
   ];
 
-  // ---------------- 列表 ----------------
   const loading = ref(false);
   const rows = ref<MenuNode[]>([]);
   const keyword = ref("");
@@ -53,10 +51,6 @@
   const statusBusy = reactive(new Set<number>());
   const visibleRows = computed(() => filterMenuTree(rows.value, keyword.value));
 
-  /**
-   * el-table-column 挂载时会用假作用域（row 为 {}）先跑一遍默认插槽来收集子列，
-   * 所以插槽里读 row 必须容错，不能直接 row.meta.xxx。
-   */
   function metaTitle(row?: { meta?: Partial<MenuMeta> | null }) {
     return row?.meta?.title || "未命名菜单";
   }
@@ -97,7 +91,6 @@
     return undefined;
   }
 
-  /** 节点自身 + 全部后代：上级选择器要排除它们，否则会挂成环 */
   function subtreeIds(nodes: MenuNode[], rootId: number | null) {
     const ids = new Set<number>();
     if (rootId === null) return ids;
@@ -123,7 +116,6 @@
     }
   }
 
-  /** 行内启用/禁用：复用整行编辑接口，服务端只认一份规则 */
   function buildUpdateBody(row: MenuNode, is_disabled: boolean): UpdateMenuBody {
     return {
       menus_id: row.menus_id,
@@ -175,7 +167,6 @@
     }
   }
 
-  // ---------------- 权限码 ----------------
   const codes = ref<CodeItem[]>([]);
   const codesLoading = ref(false);
   const codeMap = computed(() => new Map(codes.value.map((item) => [item.code, item])));
@@ -215,7 +206,6 @@
     return item ? `${item.name}${item.scope ? ` · ${item.scope}` : ""}` : "";
   }
 
-  // ---------------- 上级菜单选项 ----------------
   const optionsTree = ref<MenuNode[]>([]);
   const optionsLoading = ref(false);
 
@@ -236,7 +226,6 @@
     children?: ParentOption[];
   }
 
-  /** 目录/页面只能挂顶级或目录下；按钮只能挂页面下 —— 上级选择器按当前类型实时切换 */
   const parentTreeData = computed<ParentOption[]>(() => {
     const excluded = subtreeIds(optionsTree.value, form.menus_id);
     if (form.type === "button") return pageOptions(optionsTree.value, "", excluded);
@@ -262,7 +251,6 @@
     return result;
   }
 
-  // ---------------- 弹窗表单 ----------------
   function emptyForm() {
     return {
       menus_id: null as number | null,
@@ -289,10 +277,9 @@
   const dialogVisible = ref(false);
   const dialogTitle = ref("");
   const submitting = ref(false);
-  /** 编辑中且已有子级：类型锁死，避免出现「页面挂在页面下」这类非法树 */
+
   const editingHasChildren = ref(false);
 
-  /** 类型可选项：上级已经是页面时，只可能是按钮 */
   const typeChoices = computed(() => {
     const parent = form.parent_id ? findNode(optionsTree.value, form.parent_id) : undefined;
     if (parent?.type === "page") return TYPE_OPTIONS.filter((item) => item.value === "button");
@@ -357,7 +344,6 @@
   watch(
     () => form.parent_id,
     (value) => {
-      // 上级选择器点「清空」时是 undefined，统一收回成顶级 0
       if (!value) form.parent_id = 0;
     },
   );
@@ -397,7 +383,7 @@
     });
     dialogVisible.value = true;
     await Promise.all([loadOptions(), loadCodes(true)]);
-    // 表格行可能来自过滤后的树，子级数量以完整树为准
+
     editingHasChildren.value = (findNode(optionsTree.value, row.menus_id)?.children?.length ?? 0) > 0;
   }
 
@@ -406,13 +392,12 @@
     if (form.type === "button") return meta;
 
     meta.path = normalizeMenuPath(form.path);
-    // 重定向只有目录用：目录点进去直接落到某个页面
+
     if (form.type === "directory") {
       if (form.redirect.trim()) meta.redirect = form.redirect.trim().replace(/\/{2,}/g, "/");
       return meta;
     }
 
-    // 外链页面不注册路由：缓存 / 占满内容区这些配置都没有意义
     if (isExternal(meta.path)) return meta;
 
     meta.keepAlive = form.keepAlive;
@@ -572,14 +557,7 @@
         </el-form-item>
 
         <el-form-item v-if="form.type !== 'directory'" label="权限码" prop="permission">
-          <el-select
-            v-model="form.permission"
-            class="field-full"
-            filterable
-            clearable
-            :loading="codesLoading"
-            :placeholder="form.type === 'button' ? '按钮必须绑定权限码' : '可选：绑定页面级权限码'"
-          >
+          <el-select v-model="form.permission" class="field-full" filterable clearable :loading="codesLoading" :placeholder="form.type === 'button' ? '按钮必须绑定权限码' : '可选：绑定页面级权限码'">
             <el-option v-for="item in codes" :key="item.code" :label="item.code" :value="item.code" :disabled="codeOptionDisabled(item)">
               <span class="code-option">
                 <code class="code-text">{{ item.code }}</code>

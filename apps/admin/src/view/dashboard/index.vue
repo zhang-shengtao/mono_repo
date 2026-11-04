@@ -1,19 +1,12 @@
 <script setup lang="ts">
   import type { RouteMenuProps } from "@/utils/perms";
 
-  // 动态路由会把当前菜单节点与按钮节点作为 props 传进来
   defineProps<RouteMenuProps>();
 
-  /** MyTable 的实例类型（ref 用，clearSelection 等 API 都在上面） */
   type MyTableRef = InstanceType<GlobalComponents["MyTable"]>;
 
-  /** 列的基础类型（MyTable 的 columns prop 的元素类型：EL 的 props + 组件私有键） */
   type BaseColumn = InstanceType<GlobalComponents["MyTable"]>["$props"]["columns"][number];
 
-  /**
-   * 只把「组件自己新增的那几个键」带上数据源的行类型；
-   * el-table-column 的 props（filters / filter-method / sortable …）原样沿用 EP 的声明，不重写。
-   */
   type TableColumn<Row> = Omit<BaseColumn, "children" | "prop" | "formatter"> & {
     children?: TableColumn<Row>[];
     prop?: string | ((scope: { row: Row; column: any; $index: number }) => unknown);
@@ -150,12 +143,10 @@
     MyTabels.value?.clearSelection();
   }
 
-  /** selection-change 的入参是选中的行 */
   function action(rows: Row[]) {
     console.log(rows);
   }
 
-  /** 预留给分页 */
   function handlePagination(page: number) {
     console.log(page);
   }
@@ -179,7 +170,7 @@
       <template #edit="{ row, column, $index }">
         <el-tag>Tag{{ $index }}</el-tag>
       </template>
-      <!-- 原来的 v-preview 指令在本地仓库里没有注册，先只保留图片本身 -->
+
       <template #image="{ row, column, $index }">
         <img :src="url" width="50" height="50" alt="" srcset="" />
       </template>

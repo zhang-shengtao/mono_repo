@@ -14,7 +14,6 @@ import {
 import type { RouteAuthConfig } from "@/types/auth";
 import { PERMISSIONS } from "@/permissions";
 
-/** 用户接口会主动返回的错误码：参数错、未登录、无权限、不存在、账号冲突、服务器异常 */
 const userErrorResponses = {
   400: errorResponseSchema,
   401: errorResponseSchema,
@@ -24,11 +23,6 @@ const userErrorResponses = {
   500: errorResponseSchema,
 };
 
-/**
- * 用户列表。
- * 超管看全部（不含自己），其他管理员只看 parent_id = 当前登录人 的账号；
- * 一次拉全量、前端本地过滤（账号数量有限）。
- */
 export const userListRouteOptions = {
   schema: {
     tags: ["系统用户"],
@@ -43,7 +37,6 @@ export const userListRouteOptions = {
   config: { auth: "admin", permission: PERMISSIONS.SYSTEM_USER_GET } satisfies RouteAuthConfig,
 };
 
-/** 新增直属下级：parent_id 固定取当前登录人，账号全局唯一 */
 export const userCreateRouteOptions = {
   schema: {
     tags: ["系统用户"],
@@ -58,7 +51,6 @@ export const userCreateRouteOptions = {
   config: { auth: "admin", permission: PERMISSIONS.SYSTEM_USER_ADD } satisfies RouteAuthConfig,
 };
 
-/** 编辑直属下级：账号不可改，密码留空表示不修改；禁用会立刻踢掉该账号的会话 */
 export const userUpdateRouteOptions = {
   schema: {
     tags: ["系统用户"],
@@ -73,7 +65,6 @@ export const userUpdateRouteOptions = {
   config: { auth: "admin", permission: PERMISSIONS.SYSTEM_USER_PUT } satisfies RouteAuthConfig,
 };
 
-/** 删除直属下级：软删除，并清掉该账号的授权与会话；有下级时拒绝 */
 export const userDeleteRouteOptions = {
   schema: {
     tags: ["系统用户"],
@@ -88,10 +79,6 @@ export const userDeleteRouteOptions = {
   config: { auth: "admin", permission: PERMISSIONS.SYSTEM_USER_DELETE } satisfies RouteAuthConfig,
 };
 
-/**
- * 用户权限详情。
- * 同时下发「可分配的角色」和「可分配的菜单范围」，前端一个请求就能画出权限弹窗。
- */
 export const userPermissionGetRouteOptions = {
   schema: {
     tags: ["系统用户"],
@@ -106,10 +93,6 @@ export const userPermissionGetRouteOptions = {
   config: { auth: "admin", permission: PERMISSIONS.SYSTEM_USER_PERMISSION_GET } satisfies RouteAuthConfig,
 };
 
-/**
- * 保存用户权限：全量覆盖 permissions。
- * 菜单必须落在所选角色的菜单并集里；非超管还必须落在自己 is_transmit = true 的范围内。
- */
 export const userPermissionPutRouteOptions = {
   schema: {
     tags: ["系统用户"],

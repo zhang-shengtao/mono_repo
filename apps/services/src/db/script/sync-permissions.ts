@@ -1,16 +1,3 @@
-/**
- * 一次性修复脚本：把「角色模板」补齐到「持有该角色的账号」身上。
- *
- * 背景：permissions 是真正的鉴权数据源（jwt 插件按 permissions ⋈ code.bind_menu_id 判权限），
- * role_menus 只是角色模板。历史上 role.update 只删不增，导致角色后来加进去的菜单
- * 不会补给已经持有该角色的账号 —— 典型症状是「角色里明明勾了『分配权限』按钮，
- * 但二级管理员账号调 PUT /admin/user/permission 一直 403」。
- *
- * 只补不改不删：已经有这条菜单的账号跳过（同一菜单只能来自一个角色，主键 user_id + menus_id），
- * 补进来的授权按 role_menus.is_transmit 带过去，created_by / updated_by 记为角色创建人。
- *
- * 用法：pnpm --filter @repo/services db:sync:permissions
- */
 import { sql } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/node-postgres";
 

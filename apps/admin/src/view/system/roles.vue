@@ -3,16 +3,11 @@
   import type { FormInstance, FormRules } from "element-plus";
   import { createRole, deleteRole, fetchRoleList, fetchRoleMenuScope, updateRole } from "@/api/role";
   import { usePerms, type RouteMenuProps } from "@/utils/perms";
-  /**
-   * 角色管理
-   * name 必须与 route.name 一致，否则 keep-alive 静默失效。
-   */
+
   defineOptions({ name: "systemRoles" });
 
-  // 动态路由会把当前菜单节点与按钮节点作为 props 传进来
   defineProps<RouteMenuProps>();
 
-  /** 按钮权限：权限码来自菜单管理里配的按钮节点，没配就不渲染 */
   const { has } = usePerms();
 
   type BaseColumn = InstanceType<GlobalComponents["MyTable"]>["$props"]["columns"][number];
@@ -40,18 +35,12 @@
     { label: "操作", slot: "action", width: 110, fixed: "right" },
   ];
 
-  // ---------------- 列表 ----------------
   const loading = ref(false);
   const roles = ref<RoleItem[]>([]);
   const keyword = ref("");
   const statusFilter = ref<StatusFilter>("");
   const statusBusy = reactive(new Set<number>());
 
-  /**
-   * 角色是随管理需要维护的有限集合（几十个），一次拉全量、本地过滤：
-   * 搜索 / 状态切换都不用再打接口，统计数字也不会随筛选条件变形。
-   * 服务端仍支持 keyword / is_disabled 过滤，供其他调用方按需使用。
-   */
   const rows = computed(() => {
     const kw = keyword.value.trim().toLowerCase();
     return roles.value.filter((item) => {
@@ -80,11 +69,6 @@
     }
   }
 
-  // ---------------- 启用 / 禁用 ----------------
-  /**
-   * 行内启停：复用整行编辑接口，服务端只认一份规则。
-   * 禁用不会动 role_menus 与 permissions，重新启用即复原。
-   */
   async function toggleStatus(row: RoleItem, enabled: boolean) {
     if (statusBusy.has(row.roles_id)) return;
 
@@ -119,7 +103,6 @@
     }
   }
 
-  // ---------------- 删除 ----------------
   async function removeRole(row: RoleItem) {
     const impact = row.user_count > 0 ? `该角色已分配给 ${row.user_count} 个账号，删除后他们的这组菜单权限会一并收回。` : "";
     try {
@@ -141,28 +124,22 @@
     }
   }
 
-  // ---------------- 菜单权限（表格） ----------------
-  /**
-   * 菜单不再用 el-tree：表格能一列列摆出「类型 / 权限码 / 分配 / 可下放」，
-   * 尤其 is_transmit（可下放）这种按行独立的开关，树控件没有地方放。
-   * 可分配范围由后端按登录人算：超管看全量，二级管理员只看自己「可下放」的菜单。
-   */
   const menuScope = ref<RoleMenuScope | null>(null);
   const menuTree = ref<MenuNode[]>([]);
   const menuLoading = ref(false);
-  /** 已勾「分配」的菜单；角色原有的菜单也会带进来，可能含当前不可分配的（只读展示） */
+
   const checkedMenus = ref<number[]>([]);
-  /** 已勾「可下放」的菜单 */
+
   const transmitMenus = ref<number[]>([]);
-  /** menus_id → parent_id，保存时用来补上级 */
+
   const menuParent = new Map<number, number>();
-  /** menus_id → 直接子级 ID，勾选联动用 */
+
   const menuChildren = new Map<number, number[]>();
 
   const assignableSet = computed(() => new Set(menuScope.value?.assignable ?? []));
-  /** 手上有可下放的菜单，就能决定「传下去时要不要继续保持可下放」—— 下放逐级传递，每级由上一级决定 */
+
   const canTransmit = computed(() => menuScope.value?.can_transmit ?? false);
-  /** 空态文案分两种：手上没菜单（是权限问题）和菜单表真空（是配置问题），别让人去翻菜单管理 */
+
   const emptyMenuTip = computed(() => (canTransmit.value ? "没有可分配的菜单，先去菜单管理里建" : "你手上没有可下放的菜单，请让上级先下放给你"));
   const checkedCount = computed(() => checkedMenus.value.length);
 
@@ -194,7 +171,6 @@
     }
   }
 
-  /** 某菜单的全部后代（不含自己），按表格树顺序 */
   function descendantIds(menus_id: number) {
     const result: number[] = [];
     const walk = (id: number) => {
@@ -207,7 +183,6 @@
     return result;
   }
 
-  /** 某菜单的全部祖先（由近到远） */
   function ancestorIds(menus_id: number) {
     const result: number[] = [];
     let cursor = menuParent.get(menus_id) ?? 0;
@@ -226,7 +201,6 @@
     return menus_id !== undefined && checkedMenus.value.includes(menus_id);
   }
 
-  /** 已分配的菜单允许取消（哪怕它已经禁用），未分配的禁用菜单不能勾 */
   function canToggle(menus_id?: number) {
     return isAssignable(menus_id) || isChecked(menus_id);
   }
@@ -235,7 +209,6 @@
     return menus_id !== undefined && transmitMenus.value.includes(menus_id);
   }
 
-  /** 批量勾上：只认能勾的（可分配，或本来就已经勾着的），并同步打开「可下放」 */
   function applyChecked(ids: number[]) {
     const next = new Set(checkedMenus.value);
     for (const id of ids) {
@@ -251,13 +224,6 @@
     transmitMenus.value = [...transmit].sort((a, b) => a - b);
   }
 
-  /**
-   * 勾选联动（表格没有 el-tree 的父子联动，得自己算）：
-   *   勾上父级 → 子级全部跟着勾上，「可下放」也一起打开
-   *   勾上子级 → 祖先一起补上（否则角色里只有按钮、没有所在页面，菜单树是断的）
-   *   取消父级 → 子级全部取消
-   *   取消子级 → 祖先若已经没有任何被勾的子级，也一起取消（兄弟还勾着就留着）
-   */
   function toggleChecked(menus_id: number, value: boolean) {
     if (value) {
       applyChecked([menus_id, ...descendantIds(menus_id), ...ancestorIds(menus_id)]);
@@ -284,10 +250,9 @@
     if (!transmitMenus.value.includes(menus_id)) transmitMenus.value = [...transmitMenus.value, menus_id];
   }
 
-  /** 全选：分配全勾上，「可下放」也一起勾上（手上有可下放菜单的账号都能开） */
   function checkAllMenus() {
     const assignable = [...assignableSet.value].sort((a, b) => a - b);
-    // 角色里已有的菜单可能不在可分配范围（已禁用等），全选时保留，不能被顺手清掉
+
     checkedMenus.value = [...new Set([...checkedMenus.value, ...assignable])].sort((a, b) => a - b);
     if (canTransmit.value) transmitMenus.value = [...assignable];
   }
@@ -297,10 +262,6 @@
     transmitMenus.value = [];
   }
 
-  /**
-   * 补齐上级：只补「可分配」的祖先。
-   * 二级管理员的祖先可能只是分组节点、并不归他分配，补上去后端会直接拒绝。
-   */
   function withAncestors(ids: number[]) {
     const result = new Set(ids);
     for (const id of ids) {
@@ -313,7 +274,6 @@
     return [...result].sort((a, b) => a - b);
   }
 
-  /** 表格插槽里的 row 是 any（挂载时还会先用假作用域跑一遍），取值一律容错 */
   function menuTitle(row?: Partial<MenuNode>) {
     return row?.meta?.title || "未命名菜单";
   }
@@ -328,7 +288,6 @@
     return type === "page" ? "success" : type === "button" ? "warning" : "info";
   }
 
-  // ---------------- 弹窗表单 ----------------
   function emptyForm() {
     return {
       roles_id: null as number | null,
@@ -375,7 +334,7 @@
 
     dialogVisible.value = true;
     await loadMenuScope();
-    // 回填用 ID 数组驱动，表格渲染顺序无关，不需要等 DOM
+
     checkedMenus.value = [...(role?.menus_id ?? [])];
     transmitMenus.value = [...(role?.transmit_menus_id ?? [])];
   }
@@ -406,11 +365,6 @@
     }
   }
 
-  // ---------------- 展示辅助 ----------------
-  /**
-   * el-table-column 挂载时会用假作用域（row 为 {}）先跑一遍默认插槽来收集子列，
-   * 所以插槽里读 row 必须容错，不能直接 row.menus_id.length。
-   */
   function menuCount(row?: Partial<RoleItem>) {
     return row?.menus_id?.length ?? 0;
   }
@@ -424,7 +378,6 @@
     return row.created_by_name ?? `用户 ${row.created_by}`;
   }
 
-  /** 库里是 timestamp 字符串（2026-11-02 17:02:28.123），表格只显示到分钟 */
   function formatTime(value?: string | null) {
     if (!value) return "—";
     return String(value).replace("T", " ").slice(0, 16);
@@ -596,7 +549,11 @@
             <el-empty v-if="!menuLoading && menuTree.length === 0" :description="emptyMenuTip" :image-size="64" />
           </div>
           <p class="form-tip tree-tip">
-            {{ canTransmit ? "勾父级会连同子级一起勾上（可下放同步打开），只勾子级会自动补上上级；勾了「可下放」的菜单，持有该角色的账号才能继续分配给他的下级。" : "你手上没有可下放的菜单，暂时无法分配权限，请让上级先把菜单下放给你。" }}
+            {{
+              canTransmit
+                ? "勾父级会连同子级一起勾上（可下放同步打开），只勾子级会自动补上上级；勾了「可下放」的菜单，持有该角色的账号才能继续分配给他的下级。"
+                : "你手上没有可下放的菜单，暂时无法分配权限，请让上级先把菜单下放给你。"
+            }}
           </p>
         </el-form-item>
       </el-form>

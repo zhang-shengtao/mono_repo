@@ -4,7 +4,7 @@ import MenuService from "../menu/menu.service";
 
 export default async function authRoutes(fastify: FastifyInstance) {
   const authService = new AuthService(fastify);
-  // 菜单数据归 menu 模块管，接口挂在 auth 下是因为它按「当前登录人」算，和 /auth/profile 是一对
+
   const menuService = new MenuService(fastify);
 
   fastify.get("/admin/auth/captcha", { ...captchaRouteOptions }, async function (request, reply) {
@@ -19,7 +19,6 @@ export default async function authRoutes(fastify: FastifyInstance) {
     return reply.success(authService.getProfile(request.user!));
   });
 
-  // 当前登录人可见的菜单：动态路由与按钮权限都从这里来
   fastify.get("/admin/auth/routes", { ...routesRouteOptions }, async function (request, reply) {
     return reply.success(await menuService.routesFor(request.user!));
   });

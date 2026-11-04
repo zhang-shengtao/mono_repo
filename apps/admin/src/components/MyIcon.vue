@@ -2,7 +2,7 @@
   import * as ElementPlusIconsVue from "@element-plus/icons-vue";
 
   interface IconProps {
-    name: string; // 本地svg就传 svg:[name]，element-plus图标就传 [name]
+    name: string;
     size?: number | string;
     color?: string;
   }

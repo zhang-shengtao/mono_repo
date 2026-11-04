@@ -4,7 +4,6 @@
   import type { RouteMenuProps } from "@/utils/perms";
   defineOptions({ name: "systemCode" });
 
-  // 动态路由会把当前菜单节点与按钮节点作为 props 传进来
   defineProps<RouteMenuProps>();
 
   type BaseColumn = InstanceType<GlobalComponents["MyTable"]>["$props"]["columns"][number];
@@ -21,7 +20,6 @@
     { value: "disabled", label: "已禁用" },
   ];
 
-  /** 权限码最长 26 个字符，列宽按内容给；备注 / 绑定菜单留够展示空间，窄屏横向滚动查看 */
   const columns: TableColumn<CodeItem>[] = [
     { label: "权限码", slot: "code", width: 220 },
     { label: "名称", slot: "name", minWidth: 120 },
@@ -33,7 +31,6 @@
     { label: "操作", slot: "action", width: 96 },
   ];
 
-  // ---------------- 列表 ----------------
   const loading = ref(false);
   const codes = ref<CodeItem[]>([]);
   const keyword = ref("");
@@ -41,11 +38,6 @@
   const statusFilter = ref<StatusFilter>("");
   const statusBusy = reactive(new Set<string>());
 
-  /**
-   * 权限码是随代码种子维护的有限集合（几十条），一次拉全量、本地过滤：
-   * 搜索 / 作用域 / 状态切换都不用再打接口，统计数字也不会随筛选条件变形。
-   * 服务端仍支持 keyword / scope / is_disabled 过滤，供其他调用方按需使用。
-   */
   const rows = computed(() => {
     const kw = keyword.value.trim().toLowerCase();
     return codes.value.filter((item) => {
@@ -89,12 +81,6 @@
     }
   }
 
-  // ---------------- 启用 / 禁用 ----------------
-  /**
-   * 行内启停：直接改 code.is_disabled。
-   * 禁用会让持有该权限的账号立刻调不通对应接口，所以先确认；已绑定菜单时把菜单名字写进提示，
-   * 方便管理员判断影响面（绑定关系本身不受影响，重新启用即复原）。
-   */
   async function toggleStatus(row: CodeItem, enabled: boolean) {
     if (statusBusy.has(row.code)) return;
 
@@ -123,7 +109,6 @@
     }
   }
 
-  // ---------------- 备注 ----------------
   const remarkVisible = ref(false);
   const remarkSaving = ref(false);
   const remarkRow = ref<CodeItem | null>(null);
@@ -157,7 +142,6 @@
     remarkText.value = "";
   }
 
-  // ---------------- 复制 ----------------
   const { copy, isSupported: copySupported } = useClipboard({ legacy: true });
 
   async function copyCode(row: CodeItem) {
@@ -174,8 +158,6 @@
     }
   }
 
-  // ---------------- 展示辅助 ----------------
-  /** 库里是 timestamp 字符串（2026-11-02 17:02:28.123），表格只显示到分钟 */
   function formatTime(value?: string | null) {
     if (!value) return "—";
     return String(value).replace("T", " ").slice(0, 16);
@@ -285,13 +267,7 @@
 
       <template #status="{ row }">
         <span class="status-cell">
-          <el-switch
-            :model-value="!row.is_disabled"
-            size="small"
-            :loading="statusBusy.has(row.code)"
-            :disabled="statusBusy.has(row.code)"
-            @change="(value) => toggleStatus(row, Boolean(value))"
-          />
+          <el-switch :model-value="!row.is_disabled" size="small" :loading="statusBusy.has(row.code)" :disabled="statusBusy.has(row.code)" @change="(value) => toggleStatus(row, Boolean(value))" />
           <span class="status-text" :class="{ 'is-off': row.is_disabled }">{{ row.is_disabled ? "已禁用" : "启用中" }}</span>
         </span>
       </template>

@@ -5,21 +5,15 @@
   import useUserStore from "@/pinia/user";
   import type { RouteMenuProps } from "@/utils/perms";
   import { usePerms } from "@/utils/perms";
-  /**
-   * 用户管理
-   * 超管看全部账号，其他管理员只看自己的直属下级：列表、启停、编辑、删除都在这一页，权限分配走独立弹窗。
-   * name 必须与 route.name 一致，否则 keep-alive 静默失效。
-   */
+
   defineOptions({ name: "systemUser" });
 
-  // 动态路由会把当前菜单节点与按钮节点作为 props 传进来
   defineProps<RouteMenuProps>();
 
-  /** 按钮权限：权限码来自菜单管理里配的按钮节点，没配就不渲染 */
   const { has } = usePerms();
 
   const userStore = useUserStore();
-  /** 超管才有「上级」这一列：其他人的列表里所有行的上级都是自己，列出来纯属噪音 */
+
   const isSuperAdmin = computed(() => userStore.profile?.parent_id === 0);
 
   type BaseColumn = InstanceType<GlobalComponents["MyTable"]>["$props"]["columns"][number];
@@ -48,14 +42,12 @@
     { label: "操作", slot: "action", width: 178, fixed: "right" },
   ]);
 
-  // ---------------- 列表 ----------------
   const loading = ref(false);
   const users = ref<UserItem[]>([]);
   const keyword = ref("");
   const statusFilter = ref<StatusFilter>("");
   const statusBusy = reactive(new Set<number>());
 
-  /** 下级账号数量有限，一次拉全量、本地过滤，筛完再打接口纯属浪费 */
   const rows = computed(() => {
     const kw = keyword.value.trim().toLowerCase();
     return users.value.filter((item) => {
@@ -67,11 +59,6 @@
 
   const hasFilter = computed(() => Boolean(keyword.value.trim() || statusFilter.value));
 
-  /**
-   * user_id → 显示名，给「上级」列用。
-   * 超管的列表里不含自己，但直属下级的 parent_id 就是自己，所以要把当前登录人补进映射，
-   * 否则那一列会全变成「用户 1」。
-   */
   const userNameById = computed(() => {
     const map = new Map<number, string>();
     for (const item of users.value) map.set(item.user_id, item.nickname || item.account);
@@ -101,8 +88,6 @@
     }
   }
 
-  // ---------------- 启用 / 禁用 ----------------
-  /** 行内启停走整行编辑接口，服务端只认一份规则；禁用会顺带踢掉该账号的会话 */
   async function toggleStatus(row: UserItem, enabled: boolean) {
     if (statusBusy.has(row.user_id)) return;
 
@@ -136,7 +121,6 @@
     }
   }
 
-  // ---------------- 删除 ----------------
   async function removeUser(row: UserItem) {
     try {
       await ElMessageBox.confirm(`确定删除「${row.nickname}」吗？该账号会被软删除，已分配的权限一并收回。`, "删除确认", {
@@ -157,7 +141,6 @@
     }
   }
 
-  // ---------------- 用户表单 ----------------
   function emptyForm() {
     return {
       user_id: null as number | null,
@@ -188,7 +171,6 @@
     };
 
     if (isEdit.value) {
-      // 编辑时密码留空 = 不改，填了才校验长度
       result.password = [{ min: 6, max: 128, message: "密码 6 至 128 个字符", trigger: "blur" }];
       return result;
     }
@@ -263,13 +245,6 @@
     }
   }
 
-  // ---------------- 权限分配 ----------------
-  /**
-   * 权限弹窗的三层数据：
-   *   roles    可分配的角色（每个角色带自己的菜单集合）
-   *   scope    可分配的菜单范围 + 能否设置「可下放」（后端按登录人算）
-   *   checked  当前勾选的菜单，保存时按全量覆盖写 permissions
-   */
   const permVisible = ref(false);
   const permLoading = ref(false);
   const permSaving = ref(false);
@@ -280,7 +255,7 @@
   const scope = ref<RoleMenuScope | null>(null);
   const checkedMenus = ref<number[]>([]);
   const transmitMenus = ref<number[]>([]);
-  /** el-select 的 change 只给新值，旧值自己留一份用来算增量 */
+
   let prevRoles: number[] = [];
 
   const roleOptionMap = computed(() => new Map(roleOptions.value.map((role) => [role.roles_id, role])));
@@ -288,7 +263,6 @@
   const canTransmit = computed(() => scope.value?.can_transmit ?? false);
   const checkedCount = computed(() => checkedMenus.value.length);
 
-  /** 所选角色的菜单并集：只有落在这里面的菜单才能分配给用户 */
   const allowedMenuIds = computed(() => {
     const set = new Set<number>();
     for (const roles_id of permissionRoles.value) {
@@ -297,7 +271,6 @@
     return set;
   });
 
-  /** 候选菜单树：命中菜单 + 祖先链（祖先只做分组，不可勾选） */
   const candidateTree = computed(() => filterTree(scope.value?.list ?? [], allowedMenuIds.value));
 
   function filterTree(nodes: MenuNode[], allowed: Set<number>): MenuNode[] {
@@ -314,7 +287,6 @@
     return result;
   }
 
-  /** 候选树的父子索引：换角色时树会变，所以放在 computed 里现算 */
   const candidateIndex = computed(() => {
     const parent = new Map<number, number>();
     const children = new Map<number, number[]>();
@@ -334,7 +306,6 @@
     return { parent, children };
   });
 
-  /** 某菜单的全部后代（不含自己） */
   function descendantIds(menus_id: number) {
     const result: number[] = [];
     const walk = (id: number) => {
@@ -347,7 +318,6 @@
     return result;
   }
 
-  /** 某菜单的全部祖先（由近到远） */
   function ancestorIds(menus_id: number) {
     const result: number[] = [];
     let cursor = candidateIndex.value.parent.get(menus_id) ?? 0;
@@ -384,7 +354,6 @@
     }
   }
 
-  /** 换角色时顺手带出 / 收回菜单，省得每次都手点一遍 */
   function handleRolesChange(next: number[]) {
     const added = next.filter((id) => !prevRoles.includes(id));
     const removed = prevRoles.filter((id) => !next.includes(id));
@@ -398,7 +367,6 @@
     }
 
     if (removed.length > 0) {
-      // 只保留仍被其它已选角色覆盖的菜单
       const covered = new Set<number>();
       for (const roles_id of next) {
         for (const menus_id of roleOptionMap.value.get(roles_id)?.menus_id ?? []) covered.add(menus_id);
@@ -426,12 +394,10 @@
     return menus_id !== undefined && transmitMenus.value.includes(menus_id);
   }
 
-  /** 已勾的允许取消（哪怕菜单后来被禁用了），没勾的必须同时满足「角色里有 + 自己可分配」 */
   function canToggle(menus_id?: number) {
     return isChecked(menus_id) || (isAllowed(menus_id) && isAssignable(menus_id));
   }
 
-  /** 批量勾上：只认能勾的（角色里有 + 自己可分配），并同步打开「可下放」 */
   function applyChecked(ids: number[]) {
     const next = new Set(checkedMenus.value);
     for (const id of ids) {
@@ -447,13 +413,6 @@
     transmitMenus.value = [...transmit].sort((a, b) => a - b);
   }
 
-  /**
-   * 勾选联动（和角色表单同一套）：
-   *   勾上父级 → 子级一起勾上，「可下放」也一起开
-   *   勾上子级 → 祖先一起补上（祖先若不在所选角色里就跳过，服务端不接受）
-   *   取消父级 → 子级一起取消
-   *   取消子级 → 祖先已没有任何被勾的子级时也取消
-   */
   function toggleChecked(menus_id: number, value: boolean) {
     if (value) {
       applyChecked([menus_id, ...descendantIds(menus_id), ...ancestorIds(menus_id)]);
@@ -505,7 +464,7 @@
         menus_id: checkedMenus.value,
         transmit_menus_id: transmitMenus.value.filter((id) => checkedMenus.value.includes(id)),
       });
-      // 用服务端返回回填，本地状态不会和服务端漂移
+
       permissionRoles.value = [...detail.roles_id];
       checkedMenus.value = detail.menus.map((item) => item.menus_id);
       transmitMenus.value = detail.menus.filter((item) => item.is_transmit).map((item) => item.menus_id);
@@ -521,8 +480,6 @@
     }
   }
 
-  // ---------------- 展示辅助 ----------------
-  /** el-table-column 挂载时会用假作用域（row 为 {}）先跑一遍默认插槽，取值一律容错 */
   function roleTags(row?: Partial<UserItem>) {
     return row?.roles ?? [];
   }
@@ -537,7 +494,6 @@
     return "正常";
   }
 
-  /** 库里是 timestamp 字符串（2026-11-02 17:02:28.123），表格只显示到分钟 */
   function formatTime(value?: string | null) {
     if (!value) return "—";
     return String(value).replace("T", " ").slice(0, 16);
@@ -764,11 +720,7 @@
             </el-table-column>
           </el-table>
 
-          <el-empty
-            v-if="!permLoading && candidateTree.length === 0"
-            :description="permissionRoles.length === 0 ? '先选一个角色，菜单才会列出来' : '所选角色下没有你能分配的菜单'"
-            :image-size="64"
-          />
+          <el-empty v-if="!permLoading && candidateTree.length === 0" :description="permissionRoles.length === 0 ? '先选一个角色，菜单才会列出来' : '所选角色下没有你能分配的菜单'" :image-size="64" />
         </div>
 
         <p class="form-tip perm-tip">
