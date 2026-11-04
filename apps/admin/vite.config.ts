@@ -1,12 +1,20 @@
 import register_plugins from "./plugin/index.ts";
 import path from "node:path";
 import { defineConfig, loadEnv } from "vite";
+import compression from "vite-plugin-compression";
 
 export default defineConfig((option) => {
   const env = loadEnv(option.mode, import.meta.dirname, "VITE_");
   env.VITE_BASE_NG = path.posix.join("/", env.VITE_BASE_NG || "");
   return {
-    plugins: register_plugins(option, env),
+    plugins: [
+      ...register_plugins(option, env),
+      compression({
+        threshold: 1024 * 1024 + 1,
+        filter: () => true,
+        deleteOriginFile: false,
+      }),
+    ],
     base: env.VITE_BASE_NG,
     resolve: {
       alias: {
@@ -40,7 +48,20 @@ export default defineConfig((option) => {
     build: {
       sourcemap: false,
       chunkSizeWarningLimit: 1500,
-      assetsDir: "assets",
+      rollupOptions: {
+        output: {
+          entryFileNames: "js/[name]-[hash].js",
+          chunkFileNames: "js/[name]-[hash].js",
+          assetFileNames: (assetInfo) => {
+            const extension = path.extname(assetInfo.name ?? "").toLowerCase();
+            if (extension === ".css") return "css/[name]-[hash][extname]";
+            if ([".avif", ".bmp", ".gif", ".ico", ".jpeg", ".jpg", ".png", ".svg", ".webp"].includes(extension)) {
+              return "img/[name]-[hash][extname]";
+            }
+            return "assets/[name]-[hash][extname]";
+          },
+        },
+      },
     },
   };
 });

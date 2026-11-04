@@ -126,7 +126,7 @@ function saveLayoutSettings() {
 
 const settings = reactive<LayoutSettings>({ ...DEFAULT_LAYOUT_SETTINGS, ...restoreLayoutSettings() });
 
-const isMobile: boolean = useMediaQuery("(max-width: 992px)");
+const isMobile = useMediaQuery("(max-width: 992px)");
 const prefersDark = usePreferredDark();
 
 const isDark = computed(() => settings.theme === "dark" || (settings.theme === "auto" && prefersDark.value));
