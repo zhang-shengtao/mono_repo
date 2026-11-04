@@ -6,11 +6,8 @@ import { z } from "zod/v4";
  * 表结构由 apps/services/src/db/admin_menus.ts 定义，这里只固化「接口怎么说」：
  * 服务端拿这些 schema 做请求校验 + swagger 文档，admin 端拿这些类型写页面。
  *
- * 三类节点的语义：
- *   directory 目录：只做分组，meta 有 title/path（可选 redirect），permission 必须为空
- *   page      页面：只存路由配置，meta 有 title/path/name，子级只能是 button；
- *             path 可以是外链（http/https），外链页面不注册路由、不要求 name，前端只渲染成菜单项
- *   button    按钮：meta 只有 title，permission 必填（绑定 code 表的权限码）
+ * meta 是前端生成和消费的 JSON 对象，服务端只负责保存与返回，不修改其中字段。
+ * 菜单类型与 permission 的业务关系仍由服务端校验。
  */
 
 /** 菜单类型枚举（顺序即前端选项顺序） */
@@ -18,30 +15,20 @@ export const MENU_TYPES = ["directory", "page", "button"] as const;
 export const menuTypeSchema = z.enum(MENU_TYPES);
 export type MenuType = z.infer<typeof menuTypeSchema>;
 
-/**
- * 菜单元数据（admin_menus.meta，jsonb）的通用形状。
- * 各类型的必填项由服务端按 type 二次校验：
- *   directory → title、path
- *   page      → title、path、name
- *   button    → title
- * 多传的键会被裁掉，不会落库；icon / component 目前不开放配置，不在契约里。
- */
-export const menuMetaSchema = z.object({
-  title: z.string().trim().min(1).max(30).describe("菜单名称；按钮则是按钮名称"),
-  path: z
-    .string()
-    .trim()
-    .max(500)
-    .optional()
-    .describe("路由路径：站内绝对路径（如 /system/menu）或外链（如 https://example.com）；目录只能是站内路径"),
-  name: z.string().trim().max(60).optional().describe("路由名（keep-alive 依赖），如 systemMenu；外链页面可不填"),
-  keepAlive: z.boolean().optional().describe("是否缓存页面"),
-  isScreen: z.boolean().optional().describe("是否占满内容区"),
-  hidden: z.boolean().optional().describe("是否隐藏（不进菜单 / 不进页签）"),
-  target: z.boolean().optional().describe("是否在新窗口打开"),
-  redirect: z.string().trim().max(120).optional().describe("重定向路径，只有目录用：点目录时默认落到哪个页面"),
-});
-export type MenuMeta = z.infer<typeof menuMetaSchema>;
+/** 菜单元数据的已知前端字段；索引签名允许透传其他 JSON 字段。 */
+export interface MenuMeta {
+  [key: string]: unknown;
+  title?: string;
+  path?: string;
+  keepAlive?: boolean;
+  isScreen?: boolean;
+  hidden?: boolean;
+  target?: boolean;
+  redirect?: string;
+}
+
+/** JSON 对象不做字段裁剪、默认值填充或类型转换，入参和出参共用此契约。 */
+export const menuMetaSchema: z.ZodType<MenuMeta> = z.record(z.string(), z.unknown());
 
 /** 菜单树节点：列表接口返回的一行 */
 export interface MenuNode {
@@ -75,7 +62,6 @@ export const menuNodeSchema: z.ZodType<MenuNode> = z.object({
 
 /** 菜单树查询参数 */
 export const menuTreeQuerySchema = z.object({
-  keyword: z.string().trim().max(120).optional().describe("按名称 / 路径 / 路由名 / 组件 / 权限码模糊搜索"),
   type: menuTypeSchema.optional().describe("按类型过滤"),
   is_disabled: z
     .enum(["true", "false"])
@@ -96,7 +82,7 @@ export const menuTreeResultSchema: z.ZodType<MenuTreeResult> = z.object({
   total: z.number().int().describe("菜单节点总数（不受过滤条件影响）"),
 });
 
-/** 新增 / 编辑菜单的请求体（三种类型共用一份形状，按 type 的差异由服务端校验） */
+/** 新增 / 编辑菜单的请求体；meta 由前端组装，服务端原样保存 */
 export const menuBodySchema = z.object({
   type: menuTypeSchema.describe("菜单类型"),
   parent_id: z.number().int().min(0).default(0).describe("上级菜单 ID；0 表示顶级"),

@@ -26,6 +26,7 @@
   ];
   const TYPE_LABEL = Object.fromEntries(TYPE_OPTIONS.map((item) => [item.value, item.label])) as Record<MenuType, string>;
   const TYPE_TAG = Object.fromEntries(TYPE_OPTIONS.map((item) => [item.value, item.tag])) as Record<MenuType, TagType>;
+  const META_FIELD_NAMES = new Set(["title", "path", "keepAlive", "isScreen", "hidden", "target", "redirect"]);
   /** 表格插槽里的 row 是 any，收口成两个取值函数，模板里就不必索引联合类型 */
   function typeLabel(type: MenuType) {
     return TYPE_LABEL[type] ?? "未知";
@@ -36,7 +37,6 @@
 
   const columns: TableColumn<MenuNode>[] = [
     { label: "菜单名称", prop: (option) => option.row?.meta?.title || "未命名菜单", minWidth: 200 },
-    { label: "路由名", prop: (option) => option.row?.meta?.name || "-", minWidth: 200 },
     { label: "类型", slot: "type", width: 80, align: "center" },
     { label: "路由", prop: (option) => option.row?.meta?.path || "-" },
     { label: "权限码", slot: "permission", minWidth: 200 },
@@ -48,10 +48,10 @@
   // ---------------- 列表 ----------------
   const loading = ref(false);
   const rows = ref<MenuNode[]>([]);
-  const total = ref(0);
   const keyword = ref("");
   const typeFilter = ref<MenuType | "">("");
   const statusBusy = reactive(new Set<number>());
+  const visibleRows = computed(() => filterMenuTree(rows.value, keyword.value));
 
   /**
    * el-table-column 挂载时会用假作用域（row 为 {}）先跑一遍默认插槽来收集子列，
@@ -59,6 +59,33 @@
    */
   function metaTitle(row?: { meta?: Partial<MenuMeta> | null }) {
     return row?.meta?.title || "未命名菜单";
+  }
+
+  function filterMenuTree(nodes: MenuNode[], value: string): MenuNode[] {
+    const normalized = value.trim().toLowerCase();
+    if (!normalized) return nodes;
+
+    return nodes.flatMap((node) => {
+      const children = node.children ? filterMenuTree(node.children, normalized) : undefined;
+      const matches = [node.meta.title ?? "", node.meta.path ?? "", node.permission ?? ""].some((field) => field.toLowerCase().includes(normalized));
+      if (!matches && !children?.length) return [];
+      return [{ ...node, ...(children ? { children } : {}) }];
+    });
+  }
+
+  function normalizeMenuPath(value: string) {
+    const raw = value.trim();
+    if (isExternal(raw)) return raw;
+    return raw.replace(/\/{2,}/g, "/").replace(/\/+$/, "") || "/";
+  }
+
+  function hasPathConflict(nodes: MenuNode[], path: string, currentId: number | null): MenuNode | undefined {
+    for (const node of nodes) {
+      if (node.type !== "button" && node.menus_id !== currentId && normalizeMenuPath(node.meta.path ?? "") === path) return node;
+      const conflict = hasPathConflict(node.children ?? [], path, currentId);
+      if (conflict) return conflict;
+    }
+    return undefined;
   }
 
   function findNode(nodes: MenuNode[], menus_id: number): MenuNode | undefined {
@@ -87,18 +114,13 @@
   async function loadTree() {
     loading.value = true;
     try {
-      const result = await fetchMenuTree({ keyword: keyword.value.trim() || undefined, type: typeFilter.value || undefined });
+      const result = await fetchMenuTree({ type: typeFilter.value || undefined });
       rows.value = result.list;
-      total.value = result.total;
     } catch {
       // 请求层已统一提示
     } finally {
       loading.value = false;
     }
-  }
-
-  function search() {
-    void loadTree();
   }
 
   /** 行内启用/禁用：复用整行编辑接口，服务端只认一份规则 */
@@ -246,9 +268,9 @@
       menus_id: null as number | null,
       type: "directory" as MenuType,
       parent_id: 0,
+      metaExtras: {} as Record<string, unknown>,
       title: "",
       path: "",
-      name: "",
       permission: null as string | null,
       sort: 0,
       is_disabled: false,
@@ -279,22 +301,41 @@
 
   const rules = computed<FormRules>(() => {
     const result: FormRules = {
-      title: [{ required: true, message: "请输入名称", trigger: "blur" }],
+      title: [{ required: true, whitespace: true, message: "请输入名称", trigger: "blur" }],
       sort: [{ required: true, message: "请输入排序值", trigger: "change" }],
     };
 
     if (form.type !== "button") {
       result.path = [
         { required: true, message: "请输入路由路径，如 /system/menu 或 https://example.com", trigger: "blur" },
+        { max: 500, message: "路由路径不能超过500个字符", trigger: "blur" },
         { pattern: /^(\/|https?:\/\/)/i, message: "站内路径以 / 开头，外链以 http:// 或 https:// 开头", trigger: "blur" },
         { pattern: /^\S+$/, message: "路由路径不能包含空格", trigger: "blur" },
+        {
+          validator: (_rule, value, callback) => {
+            if (!value) return callback();
+            if (form.type === "directory" && isExternal(String(value))) return callback(new Error("目录不能使用外链，外链请建为页面"));
+            const conflict = hasPathConflict(optionsTree.value, normalizeMenuPath(String(value)), form.menus_id);
+            if (conflict) return callback(new Error(`路由路径已被「${metaTitle(conflict)}」占用`));
+            callback();
+          },
+          trigger: "blur",
+        },
       ];
     }
-    // 外链页面不注册路由，也就没有路由名
-    if (form.type === "page" && !isExternal(form.path)) {
-      result.name = [
-        { required: true, message: "请输入路由名，如 systemMenu", trigger: "blur" },
-        { pattern: /^[A-Za-z][A-Za-z0-9_-]*$/, message: "路由名以字母开头，只能包含字母、数字、下划线和中划线", trigger: "blur" },
+    if (form.type === "directory") {
+      result.redirect = [
+        {
+          validator: (_rule, value, callback) => {
+            const redirect = String(value ?? "").trim();
+            if (!redirect) return callback();
+            if (redirect.length > 120) return callback(new Error("重定向路径不能超过120个字符"));
+            if (/\s/.test(redirect)) return callback(new Error("重定向路径不能包含空格"));
+            if (!redirect.startsWith("/")) return callback(new Error("重定向路径必须以 / 开头，例如 /system/menu"));
+            callback();
+          },
+          trigger: "blur",
+        },
       ];
     }
     if (form.type === "button") {
@@ -342,9 +383,9 @@
       menus_id: row.menus_id,
       type: row.type,
       parent_id: row.parent_id,
-      title: row.meta.title,
+      metaExtras: Object.fromEntries(Object.entries(row.meta).filter(([key]) => !META_FIELD_NAMES.has(key))),
+      title: row.meta.title ?? "",
       path: row.meta.path ?? "",
-      name: row.meta.name ?? "",
       permission: row.permission,
       sort: row.sort,
       is_disabled: row.is_disabled,
@@ -361,20 +402,19 @@
   }
 
   function buildMeta(): MenuMeta {
-    const meta: MenuMeta = { title: form.title.trim() };
+    const meta: MenuMeta = { ...form.metaExtras, title: form.title.trim() };
     if (form.type === "button") return meta;
 
-    meta.path = form.path.trim();
+    meta.path = normalizeMenuPath(form.path);
     // 重定向只有目录用：目录点进去直接落到某个页面
     if (form.type === "directory") {
-      if (form.redirect.trim()) meta.redirect = form.redirect.trim();
+      if (form.redirect.trim()) meta.redirect = form.redirect.trim().replace(/\/{2,}/g, "/");
       return meta;
     }
 
-    // 外链页面不注册路由：路由名 / 缓存 / 占满内容区都没有意义
+    // 外链页面不注册路由：缓存 / 占满内容区这些配置都没有意义
     if (isExternal(meta.path)) return meta;
 
-    meta.name = form.name.trim();
     meta.keepAlive = form.keepAlive;
     meta.isScreen = form.isScreen;
     meta.hidden = form.hidden;
@@ -383,6 +423,10 @@
   }
 
   async function submit() {
+    if (optionsLoading.value) {
+      ElMessage.warning("菜单选项还在加载，请稍后重试");
+      return;
+    }
     if (form.type === "button" && !form.parent_id) {
       ElMessage.warning("按钮必须挂在页面下，请选择上级页面");
       return;
@@ -434,11 +478,11 @@
       </div>
 
       <div class="menu-toolbar">
-        <el-input v-model="keyword" class="toolbar-search" clearable placeholder="名称 / 路径 / 权限码" @keyup.enter="search" @clear="search">
+        <el-input v-model="keyword" class="toolbar-search" clearable placeholder="名称 / 路径 / 权限码">
           <template #prefix><my-icon name="Search" :size="14" /></template>
         </el-input>
 
-        <el-select v-model="typeFilter" class="toolbar-type" clearable placeholder="全部类型" @change="search">
+        <el-select v-model="typeFilter" class="toolbar-type" clearable placeholder="全部类型" @change="loadTree">
           <el-option v-for="item in TYPE_OPTIONS" :key="item.value" :label="item.label" :value="item.value" />
         </el-select>
 
@@ -454,7 +498,7 @@
       </div>
     </header>
 
-    <my-table v-loading="loading" :data="rows" :columns="columns" row-key="menus_id" :tree-props="{ children: 'children' }" :default-expand-all="true" size="small" border>
+    <my-table v-loading="loading" :data="visibleRows" :columns="columns" row-key="menus_id" :tree-props="{ children: 'children' }" :default-expand-all="true" size="small" border>
       <template #type="{ row }">
         <el-tag size="small" :type="typeTag(row.type)" effect="light">{{ typeLabel(row.type) }}</el-tag>
       </template>
@@ -525,10 +569,6 @@
 
         <el-form-item v-if="form.type === 'directory'" label="重定向" prop="redirect">
           <el-input v-model="form.redirect" clearable placeholder="可选，目录默认落到哪个页面，如 /system/menu" />
-        </el-form-item>
-
-        <el-form-item v-if="form.type === 'page'" label="路由名" prop="name">
-          <el-input v-model="form.name" :placeholder="isExternal(form.path) ? '外链不用填路由名' : '如 systemMenu（keep-alive 依赖）'" :disabled="isExternal(form.path)" />
         </el-form-item>
 
         <el-form-item v-if="form.type !== 'directory'" label="权限码" prop="permission">

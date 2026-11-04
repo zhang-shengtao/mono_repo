@@ -137,7 +137,7 @@ function saveLayoutSettings() {
 
 const settings = reactive<LayoutSettings>({ ...DEFAULT_LAYOUT_SETTINGS, ...restoreLayoutSettings() });
 
-const isMobile = useMediaQuery("(max-width: 992px)");
+const isMobile:boolean = useMediaQuery("(max-width: 992px)");
 const prefersDark = usePreferredDark();
 
 const isDark = computed(() => settings.theme === "dark" || (settings.theme === "auto" && prefersDark.value));
@@ -190,9 +190,7 @@ watch(() => [settings.theme, settings.primaryColor, settings.material, settings.
 
 watch(() => PERSISTED_FIELDS.map((field) => settings[field]), saveLayoutSettings);
 
-watch(
-  isMobile,
-  (mobile) => {
+watch(isMobile,(mobile) => {
     settings.isCollapse = mobile;
   },
   { immediate: true },

@@ -25,18 +25,13 @@ const TYPE_LABELS: Record<MenuType, string> = { directory: "目录", page: "页�
 export default class MenuService {
   constructor(private readonly fastify: FastifyInstance) {}
 
-  /** 菜单树：全量返回，过滤时保留命中节点的祖先链，保证树形表格不断层 */
-  async tree(query: MenuTreeQuery): Promise<MenuTreeResult> {    const rows = await this.fastify.db.select().from(adminMenus).orderBy(desc(adminMenus.sort), asc(adminMenus.menus_id));
-
-    const keyword = query.keyword?.trim().toLowerCase() ?? "";
+  /** 菜单树：meta 原样返回；按类型和启停状态过滤时保留祖先链 */
+  async tree(query: MenuTreeQuery): Promise<MenuTreeResult> {
+    const rows = await this.fastify.db.select().from(adminMenus).orderBy(desc(adminMenus.sort), asc(adminMenus.menus_id));
     const matched = rows.filter((row) => {
       if (query.type && row.type !== query.type) return false;
       if (typeof query.is_disabled === "boolean" && row.is_disabled !== query.is_disabled) return false;
-      if (!keyword) return true;
-
-      const meta = toMeta(row);
-      const fields = [meta.title, meta.path ?? "", meta.name ?? "", row.permission ?? ""];
-      return fields.some((value) => value.toLowerCase().includes(keyword));
+      return true;
     });
 
     return { list: buildTree(rows, keepWithAncestors(rows, matched)), total: rows.length };
@@ -132,7 +127,7 @@ export default class MenuService {
     return { menus_id };
   }
 
-  /** 统一校验 + 归一化：父级关系、权限码、meta，最后产出可直接落库的一行 */
+  /** 校验菜单关系与权限码；meta 由前端组装，服务端不修改其内容 */
   private async validate(body: MenuBody, current: MenuRow | null) {
     const selfId = current?.menus_id ?? null;
     const parentId = body.parent_id ?? 0;
@@ -147,13 +142,11 @@ export default class MenuService {
     if (selfId !== null && parentId !== 0) await this.assertNoCycle(selfId, parentId);
 
     const permission = await this.resolvePermission(body.type, body.permission ?? null, selfId);
-    const meta = normalizeMeta(body.type, body.meta);
-    await this.assertUnique(meta, selfId);
 
     return {
       type: body.type,
       parent_id: parentId,
-      meta: meta as Record<string, unknown>,
+      meta: body.meta,
       permission,
       sort: body.sort ?? 0,
       is_disabled: body.is_disabled ?? false,
@@ -211,7 +204,7 @@ export default class MenuService {
     const keepsOwnBinding = selfId !== null && codeRow.bind_menu_id === selfId;
     if (codeRow.is_disabled && !keepsOwnBinding) throw new AppError(BusinessCode.PARAM_ERROR, `权限码 ${value} 已被禁用，不能绑定`);
     if (codeRow.bind_menu_id !== null && codeRow.bind_menu_id !== selfId) {
-      throw new AppError(BusinessCode.CONFLICT, `权限码 ${value} 已绑定到「${await this.menuTitle(codeRow.bind_menu_id)}」`);
+      throw new AppError(BusinessCode.CONFLICT, `权限码 ${value} 已绑定到菜单 ${codeRow.bind_menu_id}`);
     }
 
     const occupied = await this.fastify.db
@@ -220,27 +213,10 @@ export default class MenuService {
       .where(selfId === null ? eq(adminMenus.permission, value) : and(eq(adminMenus.permission, value), ne(adminMenus.menus_id, selfId)))
       .limit(1);
     if (occupied.length > 0) {
-      throw new AppError(BusinessCode.CONFLICT, `权限码 ${value} 已绑定到「${await this.menuTitle(occupied[0].menus_id)}」`);
+      throw new AppError(BusinessCode.CONFLICT, `权限码 ${value} 已绑定到菜单 ${occupied[0].menus_id}`);
     }
 
     return value;
-  }
-
-  /** 唯一性：目录/页面共用一套路径命名空间，页面的路由名也不能重复（keep-alive 按名字缓存） */
-  private async assertUnique(meta: MenuMeta, selfId: number | null) {
-    if (!meta.path && !meta.name) return;
-
-    const rows = await this.fastify.db.select({ menus_id: adminMenus.menus_id, meta: adminMenus.meta }).from(adminMenus);
-    const others = rows.filter((row) => row.menus_id !== selfId);
-
-    if (meta.path) {
-      const conflict = others.find((row) => toMeta(row).path === meta.path);
-      if (conflict) throw new AppError(BusinessCode.CONFLICT, `路由路径 ${meta.path} 已被「${metaTitle(toMeta(conflict))}」占用`);
-    }
-    if (meta.name) {
-      const conflict = others.find((row) => toMeta(row).name === meta.name);
-      if (conflict) throw new AppError(BusinessCode.CONFLICT, `路由名 ${meta.name} 已被「${metaTitle(toMeta(conflict))}」占用`);
-    }
   }
 
   private async findOrFail(menus_id: number, message = "菜单不存在，请刷新后重试", code: BusinessCode = BusinessCode.NOT_FOUND): Promise<MenuRow> {
@@ -254,10 +230,6 @@ export default class MenuService {
     return rows.length;
   }
 
-  private async menuTitle(menus_id: number) {
-    const [row] = await this.fastify.db.select({ meta: adminMenus.meta }).from(adminMenus).where(eq(adminMenus.menus_id, menus_id)).limit(1);
-    return row ? metaTitle(toMeta(row)) : `菜单 ${menus_id}`;
-  }
 }
 
 /** 数据库行 → 树节点（children 由 buildTree 挂） */
@@ -266,24 +238,13 @@ function toNode(row: MenuRow): MenuNode {
     menus_id: row.menus_id,
     type: row.type,
     parent_id: row.parent_id,
-    meta: toMeta(row),
+    meta: row.meta as MenuMeta,
     permission: row.permission ?? null,
     sort: row.sort,
     is_disabled: row.is_disabled,
     created_at: row.created_at,
     updated_at: row.updated_at,
   };
-}
-
-/** meta 是 jsonb，历史数据可能是任意形状，读出来统一按 MenuMeta 用，缺 title 时兜底 */
-function toMeta(row: Pick<MenuRow, "meta">): MenuMeta {
-  const meta = (row.meta ?? {}) as Record<string, unknown>;
-  const title = typeof meta.title === "string" && meta.title.trim() ? meta.title : "未命名菜单";
-  return { ...meta, title } as MenuMeta;
-}
-
-function metaTitle(meta: MenuMeta) {
-  return meta.title || "未命名菜单";
 }
 
 /** 命中节点 + 其全部祖先，保证过滤后树仍从顶级画下来 */
@@ -363,7 +324,7 @@ function toAuthNode(row: MenuRow): AuthMenuNode {
     menus_id: row.menus_id,
     type: row.type,
     parent_id: row.parent_id,
-    meta: toMeta(row),
+    meta: row.meta as MenuMeta,
     permission: row.permission ?? null,
     sort: row.sort,
   };
@@ -385,76 +346,4 @@ function buildRouteTree(rows: MenuRow[]): AuthMenuNode[] {
     (parent.children ??= []).push(node);
   }
   return roots;
-}
-
-/** 按类型裁剪 meta：只留该类型有意义的键，空值不落库；必填项在这里给出可读报错 */
-function normalizeMeta(type: MenuType, meta: MenuMeta): MenuMeta {
-  const title = (meta.title ?? "").trim();
-  if (!title) throw new AppError(BusinessCode.PARAM_ERROR, "菜单名称不能为空");
-
-  if (type === "button") return { title };
-
-  const path = normalizePath(type, meta.path);
-  // 重定向归目录用：目录点进去直接落到某个页面；页面的跳转由路由自己决定
-  if (type === "directory") return compact({ title, path, redirect: normalizeRedirect(meta.redirect) });
-
-  // 外链页面：不注册路由，路由名 / keep-alive / 占满内容区这些配置都没有意义
-  if (isExternalPath(path)) return compact({ title, path, hidden: meta.hidden });
-
-  const name = (meta.name ?? "").trim();
-  if (!name) throw new AppError(BusinessCode.PARAM_ERROR, "页面必须填写路由名，例如 systemMenu");
-  if (!/^[A-Za-z][A-Za-z0-9_-]*$/.test(name)) {
-    throw new AppError(BusinessCode.PARAM_ERROR, "路由名必须以字母开头，只能包含字母、数字、下划线和中划线");
-  }
-
-  return compact({
-    title,
-    path,
-    name,
-    keepAlive: meta.keepAlive,
-    isScreen: meta.isScreen,
-    hidden: meta.hidden,
-    target: meta.target,
-  });
-}
-
-/** 重定向可留空；填了就必须是站内绝对路径，且去掉多余斜杠 */
-function normalizeRedirect(value: string | undefined) {
-  const raw = (value ?? "").trim();
-  if (!raw) return undefined;
-  if (/\s/.test(raw)) throw new AppError(BusinessCode.PARAM_ERROR, "重定向路径不能包含空格");
-  if (!raw.startsWith("/")) throw new AppError(BusinessCode.PARAM_ERROR, "重定向路径必须以 / 开头，例如 /system/menu");
-  return raw.replace(/\/{2,}/g, "/");
-}
-
-function normalizePath(type: MenuType, value: string | undefined) {
-  const raw = (value ?? "").trim();
-  if (!raw) throw new AppError(BusinessCode.PARAM_ERROR, `${TYPE_LABELS[type]}必须填写路由路径，例如 /system`);
-  if (/\s/.test(raw)) throw new AppError(BusinessCode.PARAM_ERROR, "路由路径不能包含空格");
-
-  // 外链：原样保存，不做斜杠规整（URL 里的 // 和结尾的 / 都是有意义的）
-  if (isExternalPath(raw)) {
-    if (type === "directory") throw new AppError(BusinessCode.PARAM_ERROR, "目录只做分组，不能是外链；外链请建为页面");
-    return raw;
-  }
-
-  if (!raw.startsWith("/")) {
-    throw new AppError(BusinessCode.PARAM_ERROR, "路由路径必须以 / 开头（外链请以 http:// 或 https:// 开头），例如 /system/menu");
-  }
-  return raw.replace(/\/{2,}/g, "/").replace(/\/+$/, "") || "/";
-}
-
-/** 外链：http(s):// 开头。外链页面只进菜单，不注册路由 */
-function isExternalPath(value: string) {
-  return /^https?:\/\//i.test(value);
-}
-
-/** 丢掉 undefined / 空串，避免 jsonb 里存一堆空键 */
-function compact(meta: MenuMeta): MenuMeta {
-  const result: Record<string, unknown> = {};
-  Object.entries(meta).forEach(([key, value]) => {
-    if (value === undefined || value === null || value === "") return;
-    result[key] = value;
-  });
-  return result as MenuMeta;
 }

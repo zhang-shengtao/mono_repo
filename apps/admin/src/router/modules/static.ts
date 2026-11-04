@@ -22,6 +22,4 @@ export default [
     meta: { title: "403", hidden: true },
     component: () => import("@/view/auth/403.vue"),
   },
-  // 兜底（/:pathMatch(.*)*）不在这里：它必须等动态路由注册完再挂，
-  // 见 router/index.ts 的 notFoundRoute 与 pinia/user.ts 的 loadRoutes()
 ] satisfies RouteRecordRaw[];

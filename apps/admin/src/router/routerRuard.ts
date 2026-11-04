@@ -1,6 +1,8 @@
 import { userPinia } from "@/pinia";
 import { UNAUTHORIZED_EVENT } from "@/utils/request";
 import type { Router } from "vue-router";
+import { normalizePath } from "./path";
+import { routeRegistry } from "./registry";
 
 /** 免登录可访问的页面 */
 const whiteList = ["/login", "/404", "/403"];
@@ -54,6 +56,10 @@ export default function (router: Router) {
 
       // 路由是刚加上的，这次导航仍然停在「未匹配」状态，重来一次让它按新路由表重新匹配
       return { path: to.path, query: to.query, hash: to.hash, replace: true };
+    }
+
+    if (to.name === "notFound") {
+      return routeRegistry.has(normalizePath(to.path)) ? "/403" : "/404";
     }
 
     return true;

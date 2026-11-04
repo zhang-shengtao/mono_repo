@@ -1,6 +1,6 @@
 import type { AdminProfile, LoginBody, LoginResult } from "@repo/shared";
 import { fetchProfile, fetchRoutes, login as loginApi, logout as logoutApi } from "@/api/auth";
-import router, { notFoundRoute } from "@/router";
+import router from "@/router";
 import { buildRoutes, type AppMenuNode } from "@/router/dynamic";
 import { clearToken, getToken, setToken } from "@/utils/request";
 
@@ -99,8 +99,6 @@ export default defineStore("user", () => {
     routes.forEach((route) => {
       removers.push(router.addRoute(route));
     });
-    // 兜底必须最后挂：先挂的话，动态路由还没加完就被它截胡了
-    removers.push(router.addRoute(notFoundRoute));
 
     menuList.value = menuArr(menuTree);
     routesReady.value = true;

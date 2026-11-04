@@ -12,7 +12,7 @@ import {
 import type { RouteAuthConfig } from "@/types/auth";
 import { PERMISSIONS } from "@/permissions";
 
-/** 菜单接口会主动返回的错误码：参数错、未登录、无权限、菜单不存在、路径/权限码冲突 */
+/** 菜单接口会主动返回的错误码：参数错、未登录、无权限、菜单不存在、权限码冲突 */
 const menuErrorResponses = {
   400: errorResponseSchema,
   401: errorResponseSchema,
@@ -40,7 +40,7 @@ export const menuCreateRouteOptions = {
   schema: {
     tags: ["系统菜单"],
     summary: "新增菜单",
-    description: "按 type 校验结构：目录只做分组（permission 必须为空）；页面只存路由配置，子级只能是按钮；按钮必须绑定权限码。写入时同步 code.bind_menu_id",
+    description: "校验菜单层级与权限码关系；meta JSON 由前端组装，服务端原样保存。写入时同步 code.bind_menu_id",
     body: createMenuBodySchema,
     response: {
       200: responseSchema(menuNodeSchema),
@@ -54,7 +54,7 @@ export const menuUpdateRouteOptions = {
   schema: {
     tags: ["系统菜单"],
     summary: "编辑菜单",
-    description: "整行编辑：类型 / 上级 / meta / 权限码 / 排序 / 状态。已有子节点时不允许修改类型；换绑权限码会同步 code.bind_menu_id",
+    description: "整行编辑：服务端校验类型 / 上级 / 权限码 / 排序 / 状态，meta JSON 原样保存。已有子节点时不允许修改类型；换绑权限码会同步 code.bind_menu_id",
     body: updateMenuBodySchema,
     response: {
       200: responseSchema(menuNodeSchema),
