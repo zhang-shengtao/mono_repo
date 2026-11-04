@@ -1,20 +1,12 @@
 import register_plugins from "./plugin/index.ts";
 import path from "node:path";
 import { defineConfig, loadEnv } from "vite";
-import compression from "vite-plugin-compression";
 
 export default defineConfig((option) => {
   const env = loadEnv(option.mode, import.meta.dirname, "VITE_");
   env.VITE_BASE_NG = path.posix.join("/", env.VITE_BASE_NG || "");
   return {
-    plugins: [
-      ...register_plugins(option, env),
-      compression({
-        threshold: 1024 * 1024 + 1,
-        filter: () => true,
-        deleteOriginFile: false,
-      }),
-    ],
+    plugins: register_plugins(option, env),
     base: env.VITE_BASE_NG,
     resolve: {
       alias: {
@@ -35,10 +27,7 @@ export default defineConfig((option) => {
             const url: string = req.url ?? "";
             const accept: string = String(req.headers?.accept ?? "");
             const isPage = accept.includes("text/html");
-            const isViteOwn =
-              url.startsWith("/admin/@") ||
-              url.includes("/src/") ||
-              /\.(js|mjs|ts|vue|css|scss|svg|png|jpe?g|gif|ico|woff2?|ttf|json|map)(\?|$)/.test(url);
+            const isViteOwn = url.startsWith("/admin/@") || url.includes("/src/") || /\.(js|mjs|ts|vue|css|scss|svg|png|jpe?g|gif|ico|woff2?|ttf|json|map)(\?|$)/.test(url);
             if (isPage || isViteOwn) return url;
             return;
           },

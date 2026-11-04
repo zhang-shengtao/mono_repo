@@ -26,9 +26,9 @@ coverage
 apps/admin/*.d.ts
 
 apps/admin/docs
+apps/admin/stats.html
 
 # 本地源码快照备份（重建前的保险），不随仓库提交
 .backup
 .workbuddy-ai
-
 

@@ -25,6 +25,7 @@
     "@tailwindcss/vite": "^4.3.3",
     "@types/node": "^26.6.5",
     "@vitejs/plugin-vue": "^6.0.10",
+    "rollup-plugin-visualizer": "^7.1.1",
     "tailwindcss": "^4.3.3",
     "typescript": "catalog:",
     "unplugin-auto-import": "^21.1.0",
